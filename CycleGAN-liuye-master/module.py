@@ -9,6 +9,75 @@ from tensorflow.keras.utils import plot_model
 # ==============================================================================
 # =                                  networks                                  =
 # ==============================================================================
+class SELayer(keras.layers.Layer):
+    def __init__(self, channels, reduction=16):
+        super(SELayer, self).__init__()
+        self.channels = channels
+        self.reduction = reduction
+        self.avg_poll = GlobalAvgPool2D()
+        self.sigmoid = tf.keras.activations.sigmoid
+
+    def fc(self, x):
+        x = Dense(self.channels // self.reduction, use_bias=False)(x),
+        x = ReLU()(x),
+        x = Dense(self.channels, use_bias=False)(x)
+
+        return x
+
+    def call(self, inputs, *args, **kwargs):
+        b, _, _, c = inputs.shape
+        y = self.avg_poll(inputs)
+        y = tf.reshape(y, (y.shape[0], 1, 1, y.shape[1]))
+        y = self.fc(y)
+        y = self.sigmoid(y)
+        # mask.shape = (B, 1, 1, C)
+        return inputs * y, y
+
+
+def CBAM_conv_block(inputs, filter_num, reduction_ratio, stride=1, name=None):
+    x = inputs
+    x = Conv2D(filter_num[0], (1, 1), strides=stride, padding='same', name=name + '_conv1')(x)
+    x = BatchNormalization(axis=3, name=name + '_bn1')(x)
+    x = Activation('relu', name=name + '_relu1')(x)
+
+    x = Conv2D(filter_num[1], (3, 3), strides=1, padding='same', name=name + '_conv2')(x)
+    x = BatchNormalization(axis=3, name=name + '_bn2')(x)
+    x = Activation('relu', name=name + '_relu2')(x)
+
+    x = Conv2D(filter_num[2], (1, 1), strides=1, padding='same', name=name + '_conv3')(x)
+    x = BatchNormalization(axis=3, name=name + '_bn3')(x)
+
+    # Channel Attention
+    avgpool = GlobalAveragePooling2D(name=name + '_channel_avgpool')(x)
+    maxpool = GlobalMaxPool2D(name=name + '_channel_maxpool')(x)
+    # Shared MLP
+    Dense_layer1 = Dense(filter_num[2] // reduction_ratio, activation='relu', name=name + '_channel_fc1')
+    Dense_layer2 = Dense(filter_num[2], activation='relu', name=name + '_channel_fc2')
+    avg_out = Dense_layer2(Dense_layer1(avgpool))
+    max_out = Dense_layer2(Dense_layer1(maxpool))
+
+    channel = keras.layers.add([avg_out, max_out])
+    channel = Activation('sigmoid', name=name + '_channel_sigmoid')(channel)
+    channel = Reshape((1, 1, filter_num[2]), name=name + '_channel_reshape')(channel)
+    channel_out = tf.multiply(x, channel)
+
+    # Spatial Attention
+    avgpool = tf.reduce_mean(channel_out, axis=3, keepdims=True, name=name + '_spatial_avgpool')
+    maxpool = tf.reduce_max(channel_out, axis=3, keepdims=True, name=name + '_spatial_maxpool')
+    spatial = Concatenate(axis=3)([avgpool, maxpool])
+
+    spatial = Conv2D(1, (7, 7), strides=1, padding='same', name=name + '_spatial_conv2d')(spatial)
+    spatial_out = Activation('sigmoid', name=name + '_spatial_sigmoid')(spatial)
+
+    CBAM_out = tf.multiply(channel_out, spatial_out)
+
+    # residual connection
+    r = Conv2D(filter_num[2], (1, 1), strides=stride, padding='same', name=name + '_residual')(inputs)
+    x = keras.layers.multiply([CBAM_out, r])
+
+    return x, CBAM_out
+
+
 
 def _get_norm_layer(norm):
     if norm == 'none':
@@ -29,7 +98,8 @@ def ResnetGenerator(input_shape=(227, 227, 3),
                     norm='instance_norm',
                     attention=False):
     if attention:
-        output_channels = output_channels + 1
+        # output_channels = output_channels + 1
+        output_channels = output_channels
     Norm = _get_norm_layer(norm)
 
     # 受保护的用法
@@ -91,15 +161,19 @@ def ResnetGenerator(input_shape=(227, 227, 3),
         return keras.Model(inputs=inputs, outputs=h)
     # 假如我不添加tanh的话，又会出现报错
     if attention:
-        attention_mask = h[:, :, :, 0:1]
-        attention_mask = tf.pad(attention_mask, [[0, 0], [1, 1], [1, 1], [0, 0]], mode='REFLECT')
-        attention_mask = Conv2D(64, (3, 3), (1, 1), 'same', use_bias=False)(attention_mask)
-        attention_mask = Norm()(attention_mask)
-        attention_mask = tf.nn.relu(attention_mask)
-        attention_mask = Conv2D(3, (3, 3), (1, 1), 'valid', use_bias=False)(attention_mask)
-        attention_mask = Norm()(attention_mask)
-        attention_mask = tf.sigmoid(attention_mask)
-        attention_mask = attention_mask * attention_mask
+        h = keras.layers.Reshape((224, 224))(h)
+        h, attention_mask = CBAM_conv_block(h, [64, 64, 256], 16)
+        h, attention_mask = keras.layers.Reshape((227, 227))(h), keras.layers.Reshape((227, 227))(attention_mask)
+        # attention_mask = h[:, :, :, 0:1]
+        # attention_mask = tf.pad(attention_mask, [[0, 0], [1, 1], [1, 1], [0, 0]], mode='REFLECT')
+        # attention_mask = Conv2D(64, (3, 3), (1, 1), 'same', use_bias=False)(attention_mask)
+        # attention_mask = Norm()(attention_mask)
+        # attention_mask = tf.nn.relu(attention_mask)
+        # attention_mask = Conv2D(3, (3, 3), (1, 1), 'valid', use_bias=False)(attention_mask)
+        # attention_mask = Norm()(attention_mask)
+        # attention_mask = tf.sigmoid(attention_mask)
+        # attention_mask = attention_mask * attention_mask
+
         # attention_mask = tf.expand_dims(attention_mask, axis=3)
         # attention_mask = tf.concat([attention_mask, attention_mask, attention_mask], axis=3)
 
@@ -107,9 +181,9 @@ def ResnetGenerator(input_shape=(227, 227, 3),
         # 应该对上述式子进行更进一步的研究
         # attention_mask = tf.sigmoid(h[:, :, :, 0])  # 91
 
-        content_mask = h[:, :, :, 1:]
-        content_mask = tf.tanh(content_mask)
-        h = content_mask * attention_mask + inputs * (1 - attention_mask)
+        # content_mask = h[:, :, :, 1:]
+        # content_mask = tf.tanh(content_mask)
+        # h = content_mask * attention_mask + inputs * (1 - attention_mask)
 
         return keras.Model(inputs=inputs, outputs=[h, attention_mask])
 
@@ -135,6 +209,7 @@ class pixelshuffle(tf.keras.layers.Layer):
     """Sub-pixel convolution layer.
     See https://arxiv.org/abs/1609.05158
     """
+
     def compute_output_shape(self, input_size):
         r = self.scale
         rrC, H, W = np.array(input_size[1:])
@@ -275,7 +350,6 @@ def AttentionCycleGAN_v1_Generator(input_shape=(227, 227, 3), output_channel=3,
 
         return keras.Model(inputs=a, outputs=[result_layer, attention_mask, content_mask])
     return keras.Model(inputs=a, outputs=result_layer)
-
 
 
 def ConvDiscriminator(input_shape=(256, 256, 3),

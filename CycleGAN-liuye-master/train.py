@@ -84,11 +84,11 @@ A_B_dataset_test, _ = data.make_zip_dataset(
 # =                                   models                                   =
 # ==============================================================================
 
-G_A2B = module.AttentionCycleGAN_v1_Generator(input_shape=(args.crop_size, args.crop_size, 3), attention=True)
-G_B2A = module.AttentionCycleGAN_v1_Generator(input_shape=(args.crop_size, args.crop_size, 3), attention=False)
+# G_A2B = module.AttentionCycleGAN_v1_Generator(input_shape=(args.crop_size, args.crop_size, 3), attention=True)
+# G_B2A = module.AttentionCycleGAN_v1_Generator(input_shape=(args.crop_size, args.crop_size, 3), attention=False)
 
-# G_A2B = module.ResnetGenerator(input_shape=(args.crop_size, args.crop_size, 3), attention=True)
-# G_B2A = module.ResnetGenerator(input_shape=(args.crop_size, args.crop_size, 3), attention=False)
+G_A2B = module.ResnetGenerator(input_shape=(args.crop_size, args.crop_size, 3), attention=True)
+G_B2A = module.ResnetGenerator(input_shape=(args.crop_size, args.crop_size, 3), attention=True)
 # G_A2B = tf.keras.models.load_model(r'A2B.h5')
 # G_B2A = tf.keras.models.load_model(r'B2A.h5')
 
@@ -113,10 +113,10 @@ D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler, beta_1=args.be
 def train_G(A, B):
     with tf.GradientTape() as t:
         A2B = G_A2B(A, training=True)[0]
-        B2A = G_B2A(B, training=True)
-        A2B2A = G_B2A(A2B, training=True)
+        B2A = G_B2A(B, training=True)[0]
+        A2B2A = G_B2A(A2B, training=True)[0]
         B2A2B = G_A2B(B2A, training=True)[0]
-        A2A = G_B2A(A, training=True)
+        A2A = G_B2A(A, training=True)[0]
         B2B = G_A2B(B, training=True)[0]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
@@ -200,9 +200,9 @@ def train_step(A, B):
 @tf.function
 def sample(A, B):
     A2B = G_A2B(A, training=False)[0]
-    B2A = G_B2A(B, training=False)
+    B2A = G_B2A(B, training=False)[0]
     A2B_mask = G_A2B(A, training=False)[1]
-    A2B2A = G_B2A(A2B, training=False)
+    A2B2A = G_B2A(A2B, training=False)[0]
     B2A2B = G_A2B(B2A, training=False)[0]
     B2A2B_mask = G_A2B(B2A, training=False)[1]
     return A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask
@@ -271,6 +271,7 @@ if training:
                     if G_optimizer.iterations.numpy() % 100 == 0:
                         A, B = next(test_iter)
                         A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask = sample(A, B)
+                        # 这里可以查看一下他们的值
                         img = im.immerge(np.concatenate([A, A2B, A2B_mask, A2B2A, B, B2A, B2A2B, B2A2B_mask], axis=0),
                                          n_rows=2)
                         im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))

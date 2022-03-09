@@ -311,7 +311,8 @@ def AttentionCycleGAN_v1_Generator(input_shape=(227, 227, 3), output_channel=3,
             y = ReLU()(y)
             y = Conv2D(int(64 * mult / 2) * 4, (3, 3), (1, 1))(y)
             y = tf.transpose(y, [0, 3, 1, 2])
-            y = pixelshuffle(2)(y)
+            pix = pixelshuffle(2)
+            y = pix(y)
             y = Norm()(y)
             y = ReLU()(y)
             y = tf.transpose(y, [0, 2, 3, 1])
@@ -342,7 +343,7 @@ def AttentionCycleGAN_v1_Generator(input_shape=(227, 227, 3), output_channel=3,
         attention_mask = tf.nn.relu(attention_mask)
         attention_mask = Conv2D(1, (3, 3), (1, 1), 'valid', use_bias=False)(attention_mask)
         attention_mask = Norm()(attention_mask)
-        attention_mask = tf.sigmoid(attention_mask)
+        attention_mask = tf.sigmoid(attention_mask * 2)
 
         content_mask = h[:, :, :, 1:]
         attention_mask = tf.concat([attention_mask, attention_mask, attention_mask], axis=3)

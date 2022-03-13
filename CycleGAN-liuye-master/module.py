@@ -78,7 +78,6 @@ def CBAM_conv_block(inputs, filter_num, reduction_ratio, stride=1, name=None):
     return x, CBAM_out
 
 
-
 def _get_norm_layer(norm):
     if norm == 'none':
         return lambda: lambda x: x
@@ -253,111 +252,72 @@ class pixelshuffle(tf.keras.layers.Layer):
         return t
 
 
-def AttentionCycleGAN_v1_Generator(input_shape=(227, 227, 3), output_channel=3,
+# 参考ConvNeXt进行网路的设计
+def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, dim=96,
                                    n_downsampling=2, n_ResBlock=9,
-                                   norm='batch_norm', attention=False):
+                                   norm='layer_norm', attention=False):
     Norm = _get_norm_layer(norm)
-    a = keras.Input(shape=input_shape)
-    h = tf.pad(a, [[0, 0], [3, 3], [3, 3], [0, 0]], mode='REFLECT')
+    n_upsampling = n_downsampling
+    init_dim = dim
 
-    def model_layer_1(y):
-        y = Conv2D(64, (7, 7), (1, 1), 'valid')(y)
-        y = Norm()(y)
-        y = ReLU()(y)
-        return y
+    def ResNeXt_block(x):
+        dim = x.shape[-1]
+        h = x
+        x = keras.layers.DepthwiseConv2D(kernel_size=(7, 7), strides=(1, 1), padding='same', use_bias=False)(x)
+        x = Norm()(x)
+        x = keras.layers.Conv2D(filters=dim * 4, kernel_size=(1, 1), strides=(1, 1), padding='same', use_bias=False)(x)
+        x = keras.activations.gelu(x)
+        x = keras.layers.Conv2D(filters=dim, kernel_size=(1, 1), strides=(1, 1), padding='same', use_bias=False)(x)
 
-    h = model_layer_1(h)
+        x = keras.layers.Add()([x, h])
 
-    n_downsampling = n_downsampling
-    n_ResBlock = n_ResBlock
+        return x
 
-    if attention:
-        output_channel = output_channel + 1
-
+    h = inputs = keras.Input(shape=input_shape)
+    h = keras.layers.Conv2D(filters=dim, kernel_size=(4, 4), strides=(4, 4), padding='valid', use_bias=False)(h)
     for i in range(n_downsampling):
-        mult = 2 ** i
+        dim = dim * 2
+        h = ResNeXt_block(h)
+        h = keras.layers.Conv2D(filters=dim, kernel_size=(2, 2), strides=(2, 2), padding='valid', use_bias=False)(h)
 
-        def model_layer_2(y):
-            y = Conv2D(64 * mult * 2, (3, 3), (2, 2), 'same')(y)
-            y = Norm()(y)
-            y = ReLU()(y)
-            return y
-
-        h = model_layer_2(h)
-
-    mult = 2 ** n_downsampling
+    assert h.shape[-1] == dim
 
     for i in range(n_ResBlock):
-        x = h
+        h = ResNeXt_block(h)
 
-        def model_layer_3(y):
-            y = Conv2D(64 * mult, (3, 3), padding='valid')(y)
-            y = Norm()(y)
-            return y
+    for i in range(n_upsampling):
+        dim = dim / 2
+        h = ResNeXt_block(h)
+        h = keras.layers.Conv2DTranspose(filters=dim, kernel_size=(2, 2), strides=(2, 2), padding='valid',
+                                         use_bias=False)(h)
 
-        h = tf.pad(h, [[0, 0], [1, 1], [1, 1], [0, 0]], mode='REFLECT')
-        h = model_layer_3(h)
-        h = ReLU()(h)
-        h = tf.pad(h, [[0, 0], [1, 1], [1, 1], [0, 0]], mode='REFLECT')
-        h = model_layer_3(h)
+    assert h.shape[-1] == init_dim
 
-        h = keras.layers.add([x, h])
-
-    upsampling = n_downsampling
-
-    for i in range(upsampling):
-        mult = 2 ** (n_downsampling - 1)
-
-        def model_layer_4(y):
-            y = tf.pad(y, [[0, 0], [3, 3], [3, 3], [0, 0]], mode='REFLECT')
-            y = Conv2D(int(64 * mult / 2), (5, 5), (1, 1))(y)
-            y = Norm()(y)
-            y = ReLU()(y)
-            y = Conv2D(int(64 * mult / 2) * 4, (3, 3), (1, 1))(y)
-            y = tf.transpose(y, [0, 3, 1, 2])
-            pix = pixelshuffle(2)
-            y = pix(y)
-            y = Norm()(y)
-            y = ReLU()(y)
-            y = tf.transpose(y, [0, 2, 3, 1])
-
-            return y
-
-        h = model_layer_4(h)
-
-        # def model_layer_4(y):
-        #     y = Conv2DTranspose(64 * mult / 2, (3, 3), (2, 2), 'same')(y)
-        #     y = Norm()(y)
-        #     y = ReLU()(y)
-        #     return y
-        #
-        # h = model_layer_4(h)
-        # mult = mult / 2
-
-    h = tf.pad(h, [[0, 0], [3, 3], [3, 3], [0, 0]], mode='REFLECT')
-    h = Conv2D(output_channel, (8, 8), (1, 1), 'valid')(h)
-    h = tf.tanh(h)
-    result_layer = h
+    h = keras.layers.Conv2DTranspose(filters=init_dim, kernel_size=(4, 4), strides=(4, 4), padding='valid',
+                                     use_bias=False)(h)
 
     if attention:
-        attention_mask = h[:, :, :, :1]
-        attention_mask = tf.pad(attention_mask, [[0, 0], [1, 1], [1, 1], [0, 0]], mode='REFLECT')
-        attention_mask = Conv2D(64, (3, 3), (1, 1), 'same', use_bias=False)(attention_mask)
-        attention_mask = Norm()(attention_mask)
-        attention_mask = tf.nn.relu(attention_mask)
-        attention_mask = Conv2D(1, (3, 3), (1, 1), 'valid', use_bias=False)(attention_mask)
-        attention_mask = Norm()(attention_mask)
-        attention_mask = tf.sigmoid(attention_mask * 2)
+        h = keras.layers.Conv2D(filters=output_channel * 2, kernel_size=(7, 7), strides=(1, 1), padding='same',
+                                use_bias=False)(h)
+        h = keras.layers.Dropout(0.4)(h)
+        content = h[:, :, :, :3]
+        content = tf.tanh(content)
 
-        content_mask = h[:, :, :, 1:]
-        attention_mask = tf.concat([attention_mask, attention_mask, attention_mask], axis=3)
-        result_layer = content_mask * attention_mask + a * (1 - attention_mask)
+        attention = h[:, :, :, 3:]
+        attention = ResNeXt_block(attention)
+        attention = tf.sigmoid(attention)
 
-        return keras.Model(inputs=a, outputs=[result_layer, attention_mask, content_mask])
-    return keras.Model(inputs=a, outputs=result_layer)
+        h = tf.tanh(attention * content + (1 - attention) * inputs)
+
+        return keras.Model(inputs=inputs, outputs=[h, attention])
+
+    h = keras.layers.Conv2D(filters=output_channel, kernel_size=(7, 7), strides=(1, 1), padding='same',
+                            use_bias=False)(h)
+    h = tf.tanh(h)
+    return keras.Model(inputs=inputs, outputs=h)
 
 
-def ConvDiscriminator(input_shape=(256, 256, 3),
+def ConvDiscriminator(input_shape=(224, 224, 3),
                       dim=64,
                       n_downsamplings=3,
                       norm='instance_norm'):

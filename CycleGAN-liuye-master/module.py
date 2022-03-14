@@ -305,11 +305,13 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
 
         attention = h[:, :, :, 3:]
         attention = ResNeXt_block(attention)
-        attention = tf.sigmoid(attention)
+        attention = tf.nn.sigmoid(attention)
 
         h = tf.tanh(attention * content + (1 - attention) * inputs)
+        m = (1 - attention) * inputs
+        n = (1 - attention) * h
 
-        return keras.Model(inputs=inputs, outputs=[h, attention])
+        return keras.Model(inputs=inputs, outputs=[h, attention, m, n])
 
     h = keras.layers.Conv2D(filters=output_channel, kernel_size=(7, 7), strides=(1, 1), padding='same',
                             use_bias=False)(h)

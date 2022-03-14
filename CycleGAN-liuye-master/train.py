@@ -25,10 +25,10 @@ py.arg('--dataset', default='crack')
 py.arg('--datasets_dir', default='datasets')
 py.arg('--load_size', type=int, default=227)  # load image to this size
 py.arg('--crop_size', type=int, default=224)  # then crop to this size
-py.arg('--batch_size', type=int, default=1)
-py.arg('--epochs', type=int, default=20)
-py.arg('--epoch_decay', type=int, default=10)  # epoch to start decaying learning rate
-py.arg('--lr', type=float, default=0.00002)
+py.arg('--batch_size', type=int, default=3)
+py.arg('--epochs', type=int, default=10)
+py.arg('--epoch_decay', type=int, default=5)  # epoch to start decaying learning rate
+py.arg('--lr', type=float, default=0.0002)
 py.arg('--beta_1', type=float, default=0.5)
 py.arg('--adversarial_loss_mode', default='lsgan', choices=['gan', 'hinge_v1', 'hinge_v2', 'lsgan', 'wgan'])
 py.arg('--gradient_penalty_mode', default='none', choices=['none', 'dragan', 'wgan-gp'])
@@ -99,10 +99,18 @@ d_loss_fn, g_loss_fn = gan.get_adversarial_losses_fn(args.adversarial_loss_mode)
 cycle_loss_fn = tf.losses.MeanAbsoluteError()
 identity_loss_fn = tf.losses.MeanAbsoluteError()
 
+
+def ssim_loss(y_pred, y_true):
+    y_pred = tf.convert_to_tensor(y_pred, dtype=tf.float32)
+    y_true = tf.convert_to_tensor(y_true, dtype=tf.float32)
+    return -1 * tf.reduce_sum(-1 + tf.image.ssim(y_pred, y_true, max_val=1.0, filter_size=11,
+                              filter_sigma=1.5, k1=0.01, k2=0.03))
+
+
 G_lr_scheduler = module.LinearDecay(args.lr, args.epochs * len_dataset, args.epoch_decay * len_dataset)
-D_lr_scheduler = module.LinearDecay(args.lr, args.epochs * len_dataset, args.epoch_decay * len_dataset)
-G_optimizer = keras.optimizers.Adam(learning_rate=G_lr_scheduler, beta_1=args.beta_1)
-D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler, beta_1=args.beta_1)
+D_lr_scheduler = module.LinearDecay(args.lr * 0.1, args.epochs * len_dataset, args.epoch_decay * len_dataset)
+G_optimizer = keras.optimizers.RMSprop(learning_rate=G_lr_scheduler)
+D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 
 
 # ==============================================================================
@@ -113,11 +121,17 @@ D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler, beta_1=args.be
 def train_G(A, B):
     with tf.GradientTape() as t:
         A2B = G_A2B(A, training=True)[0]
+        A2B_m = G_A2B(A, training=True)[2]
+        A2B_n = G_A2B(A, training=True)[3]
         B2A = G_B2A(B, training=True)
         A2B2A = G_B2A(A2B, training=True)
         B2A2B = G_A2B(B2A, training=True)[0]
+        B2A2B_m = G_A2B(B2A, training=True)[2]
+        B2A2B_n = G_A2B(B2A, training=True)[3]
         A2A = G_B2A(A, training=True)
         B2B = G_A2B(B, training=True)[0]
+        B2B_m = G_A2B(B, training=True)[2]
+        B2B_n = G_A2B(B, training=True)[3]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
         # A2B2A, _, _ = G_B2A(A2B, training=True)
@@ -145,8 +159,12 @@ def train_G(A, B):
 
         # rate = args.starting_rate
 
-        G_loss = (A2B_g_loss + B2A_g_loss) + (A2B2A_cycle_loss + B2A2B_cycle_loss) * args.cycle_loss_weight + (
-                    A2A_id_loss + B2B_id_loss) * args.identity_loss_weight
+        s_loss_1 = ssim_loss(A2B_m, A2B_n)
+        s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
+        s_loss_3 = ssim_loss(B2B_m, B2B_n)
+
+        G_loss = 2 * (A2B_g_loss + B2A_g_loss) + (A2B2A_cycle_loss + B2A2B_cycle_loss) * args.cycle_loss_weight + (
+                A2A_id_loss + B2B_id_loss) * args.identity_loss_weight + (s_loss_1 + s_loss_2 + s_loss_3)
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
     G_optimizer.apply_gradients(zip(G_grad, G_A2B.trainable_variables + G_B2A.trainable_variables))
@@ -156,7 +174,8 @@ def train_G(A, B):
                       'A2B2A_cycle_loss': A2B2A_cycle_loss,
                       'B2A2B_cycle_loss': B2A2B_cycle_loss,
                       'A2A_id_loss': A2A_id_loss,
-                      'B2B_id_loss': B2B_id_loss
+                      'B2B_id_loss': B2B_id_loss,
+                      's_loss': s_loss_1 + s_loss_2 + s_loss_3
                       }
     # 'loss_reg_A': loss_reg_A,
     # 'loss_reg_B': loss_reg_B
@@ -201,12 +220,15 @@ def train_step(A, B):
 @tf.function
 def sample(A, B):
     A2B = G_A2B(A, training=False)[0]
+    m = G_A2B(A, training=False)[2]
+    n = G_A2B(A, training=False)[3]
     B2A = G_B2A(B, training=False)
     A2B_mask = G_A2B(A, training=False)[1]
     A2B2A = G_B2A(A2B, training=False)
     B2A2B = G_A2B(B2A, training=False)[0]
     B2A2B_mask = G_A2B(B2A, training=False)[1]
-    return A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask
+    return A2B[0:1, :, :, :], B2A[0:1, :, :, :], A2B_mask[0:1, :, :, :], A2B2A[0:1, :, :, :], \
+           B2A2B[0:1, :, :, :], B2A2B_mask[0:1, :, :, :], m[0:1, :, :, :], n[0:1, :, :, :]
 
 
 # ==============================================================================
@@ -269,9 +291,10 @@ if training:
                 if sampling:
                     if G_optimizer.iterations.numpy() % 100 == 0:
                         A, B = next(test_iter)
-                        A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask = sample(A, B)
-                        img = im.immerge(np.concatenate([A, A2B, A2B_mask, A2B2A, B, B2A, B2A2B_mask, B2A2B], axis=0),
-                                         n_rows=2)
+                        A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n = sample(A, B)
+                        img = im.immerge(np.concatenate(
+                            [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n], axis=0),
+                            n_rows=2)
                         im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))
                         print(G_loss_dict, D_loss_dict)
 

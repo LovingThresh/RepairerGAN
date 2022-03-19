@@ -285,6 +285,9 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
     for i in range(n_ResBlock):
         h = ResNeXt_block(h)
 
+    # base_v2
+    attention_h = h
+    attention_dim = dim
     for i in range(n_upsampling):
         dim = dim / 2
         h = ResNeXt_block(h)
@@ -293,17 +296,28 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
 
     assert h.shape[-1] == init_dim
 
+    for i in range(n_upsampling):
+        attention_dim = attention_dim / 2
+        attention_h = ResNeXt_block(attention_h)
+        attention_h = keras.layers.Conv2DTranspose(filters=attention_dim, kernel_size=(2, 2), strides=(2, 2), padding='valid',
+                                                   use_bias=False)(attention_h)
+
+    assert attention_h.shape[-1] == init_dim
+
     h = keras.layers.Conv2DTranspose(filters=init_dim, kernel_size=(4, 4), strides=(4, 4), padding='valid',
                                      use_bias=False)(h)
+    attention_h = keras.layers.Conv2DTranspose(filters=init_dim, kernel_size=(4, 4), strides=(4, 4), padding='valid',
+                                               use_bias=False)(attention_h)
 
     if attention:
-        h = keras.layers.Conv2D(filters=output_channel * 2, kernel_size=(7, 7), strides=(1, 1), padding='same',
+        h = keras.layers.Conv2D(filters=output_channel, kernel_size=(7, 7), strides=(1, 1), padding='same',
                                 use_bias=False)(h)
-        h = keras.layers.Dropout(0.4)(h)
-        content = h[:, :, :, :3]
+        content = h
         content = tf.tanh(content)
 
-        attention = h[:, :, :, 3:]
+        attention_h = keras.layers.Conv2D(filters=output_channel, kernel_size=(7, 7), strides=(1, 1), padding='same',
+                                          use_bias=False)(attention_h)
+        attention = attention_h
         attention = ResNeXt_block(attention)
         attention = tf.nn.sigmoid(attention)
 

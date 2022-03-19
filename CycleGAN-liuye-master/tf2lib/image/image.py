@@ -55,3 +55,9 @@ def random_rotate(images, max_degrees, interpolation='BILINEAR'):
     max_degrees = tf.convert_to_tensor(max_degrees, dtype=tf.float32)
     angles = tf.random.uniform(tf.shape(max_degrees), minval=-1.0, maxval=1.0) * max_degrees / 180.0 * math.pi
     return tfa.image.rotate(images, angles, interpolation=interpolation)
+
+
+@tf.function
+def get_one_from_batch(image):
+    image = image[0:1, :, :, :]
+    return image

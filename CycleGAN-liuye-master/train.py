@@ -15,7 +15,6 @@ import tqdm
 import matplotlib.pyplot as plt
 import data
 import module
-import tensorflow.keras.backend as K
 
 # ==============================================================================
 # =                                   param                                    =
@@ -104,7 +103,7 @@ def ssim_loss(y_pred, y_true):
     y_pred = tf.convert_to_tensor(y_pred, dtype=tf.float32)
     y_true = tf.convert_to_tensor(y_true, dtype=tf.float32)
     return -1 * tf.reduce_sum(-1 + tf.image.ssim(y_pred, y_true, max_val=1.0, filter_size=11,
-                              filter_sigma=1.5, k1=0.01, k2=0.03))
+                                                 filter_sigma=1.5, k1=0.01, k2=0.03))
 
 
 G_lr_scheduler = module.LinearDecay(args.lr, args.epochs * len_dataset, args.epoch_decay * len_dataset)
@@ -118,20 +117,20 @@ D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 @tf.function
-def train_G(A, B):
+def train_G(A_Generator, B_Generator):
     with tf.GradientTape() as t:
-        A2B = G_A2B(A, training=True)[0]
-        A2B_m = G_A2B(A, training=True)[2]
-        A2B_n = G_A2B(A, training=True)[3]
-        B2A = G_B2A(B, training=True)
-        A2B2A = G_B2A(A2B, training=True)
-        B2A2B = G_A2B(B2A, training=True)[0]
-        B2A2B_m = G_A2B(B2A, training=True)[2]
-        B2A2B_n = G_A2B(B2A, training=True)[3]
-        A2A = G_B2A(A, training=True)
-        B2B = G_A2B(B, training=True)[0]
-        B2B_m = G_A2B(B, training=True)[2]
-        B2B_n = G_A2B(B, training=True)[3]
+        A2B_Result = G_A2B(A_Generator, training=True)[0]
+        A2B_m = G_A2B(A_Generator, training=True)[2]
+        A2B_n = G_A2B(A_Generator, training=True)[3]
+        B2A_Result = G_B2A(B_Generator, training=True)
+        A2B2A_Result = G_B2A(A2B_Result, training=True)
+        B2A2B_Result = G_A2B(B2A_Result, training=True)[0]
+        B2A2B_m = G_A2B(B2A_Result, training=True)[2]
+        B2A2B_n = G_A2B(B2A_Result, training=True)[3]
+        A2A = G_B2A(A_Generator, training=True)
+        B2B = G_A2B(B_Generator, training=True)[0]
+        B2B_m = G_A2B(B_Generator, training=True)[2]
+        B2B_n = G_A2B(B_Generator, training=True)[3]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
         # A2B2A, _, _ = G_B2A(A2B, training=True)
@@ -139,15 +138,15 @@ def train_G(A, B):
         # A2A, _, _ = G_B2A(A, training=True)
         # B2B, _, _ = G_A2B(B, training=True)
 
-        A2B_d_logits = D_B(A2B, training=True)
-        B2A_d_logits = D_A(B2A, training=True)
+        A2B_d_logits = D_B(A2B_Result, training=True)
+        B2A_d_logits = D_A(B2A_Result, training=True)
 
         A2B_g_loss = g_loss_fn(A2B_d_logits)
         B2A_g_loss = g_loss_fn(B2A_d_logits)
-        A2B2A_cycle_loss = cycle_loss_fn(A, A2B2A)
-        B2A2B_cycle_loss = cycle_loss_fn(B, B2A2B)
-        A2A_id_loss = identity_loss_fn(A, A2A)
-        B2B_id_loss = identity_loss_fn(B, B2B)
+        A2B2A_cycle_loss = cycle_loss_fn(A_Generator, A2B2A_Result)
+        B2A2B_cycle_loss = cycle_loss_fn(B_Generator, B2A2B_Result)
+        A2A_id_loss = identity_loss_fn(A_Generator, A2A)
+        B2B_id_loss = identity_loss_fn(B_Generator, B2B)
 
         # loss_reg_A = args.lambda_reg * (
         #         K.sum(K.abs(mask_A[:, :-1, :, :] - mask_A[:, 1:, :, :])) +
@@ -169,30 +168,30 @@ def train_G(A, B):
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
     G_optimizer.apply_gradients(zip(G_grad, G_A2B.trainable_variables + G_B2A.trainable_variables))
 
-    return A2B, B2A, {'A2B_g_loss': A2B_g_loss,
-                      'B2A_g_loss': B2A_g_loss,
-                      'A2B2A_cycle_loss': A2B2A_cycle_loss,
-                      'B2A2B_cycle_loss': B2A2B_cycle_loss,
-                      'A2A_id_loss': A2A_id_loss,
-                      'B2B_id_loss': B2B_id_loss,
-                      's_loss': s_loss_1 + s_loss_2 + s_loss_3
-                      }
+    return A2B_Result, B2A_Result, {'A2B_g_loss': A2B_g_loss,
+                                    'B2A_g_loss': B2A_g_loss,
+                                    'A2B2A_cycle_loss': A2B2A_cycle_loss,
+                                    'B2A2B_cycle_loss': B2A2B_cycle_loss,
+                                    'A2A_id_loss': A2A_id_loss,
+                                    'B2B_id_loss': B2B_id_loss,
+                                    's_loss': s_loss_1 + s_loss_2 + s_loss_3
+                                    }
     # 'loss_reg_A': loss_reg_A,
     # 'loss_reg_B': loss_reg_B
 
 
 @tf.function
-def train_D(A, B, A2B, B2A):
+def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
     with tf.GradientTape() as t:
-        A_d_logits = D_A(A, training=True)
-        B2A_d_logits = D_A(B2A, training=True)
-        B_d_logits = D_B(B, training=True)
-        A2B_d_logits = D_B(A2B, training=True)
+        A_d_logits = D_A(A_True, training=True)
+        B2A_d_logits = D_A(B2A_Fake, training=True)
+        B_d_logits = D_B(B_True, training=True)
+        A2B_d_logits = D_B(A2B_Fake, training=True)
 
         A_d_loss, B2A_d_loss = d_loss_fn(A_d_logits, B2A_d_logits)
         B_d_loss, A2B_d_loss = d_loss_fn(B_d_logits, A2B_d_logits)
-        D_A_gp = gan.gradient_penalty(functools.partial(D_A, training=True), A, B2A, mode=args.gradient_penalty_mode)
-        D_B_gp = gan.gradient_penalty(functools.partial(D_B, training=True), B, A2B, mode=args.gradient_penalty_mode)
+        D_A_gp = gan.gradient_penalty(functools.partial(D_A, training=True), A_True, B2A_Fake, mode=args.gradient_penalty_mode)
+        D_B_gp = gan.gradient_penalty(functools.partial(D_B, training=True), B_True, A2B_Fake, mode=args.gradient_penalty_mode)
 
         D_loss = (A_d_loss + B2A_d_loss) + (B_d_loss + A2B_d_loss) + (D_A_gp + D_B_gp) * args.gradient_penalty_weight
 
@@ -205,30 +204,30 @@ def train_D(A, B, A2B, B2A):
             'D_B_gp': D_B_gp}
 
 
-def train_step(A, B):
-    A2B, B2A, G_loss_dict = train_G(A, B)
+def train_step(A_True, B_True):
+    A2B_Fake, B2A_Fake, G_Loss_dict = train_G(A_True, B_True)
 
     # cannot autograph `A2B_pool`
-    A2B = A2B_pool(A2B)  # or A2B = A2B_pool(A2B.numpy()), but it is much slower
-    B2A = B2A_pool(B2A)  # because of the communication between CPU and GPU
+    A2B_Fake = A2B_pool(A2B_Fake)  # or A2B = A2B_pool(A2B.numpy()), but it is much slower
+    B2A_Fake = B2A_pool(B2A_Fake)  # because of the communication between CPU and GPU
 
-    D_loss_dict = train_D(A, B, A2B, B2A)
+    D_Loss_dict = train_D(A_True, B_True, A2B_Fake, B2A_Fake)
 
-    return G_loss_dict, D_loss_dict
+    return G_Loss_dict, D_Loss_dict
 
 
 @tf.function
-def sample(A, B):
-    A2B = G_A2B(A, training=False)[0]
-    m = G_A2B(A, training=False)[2]
-    n = G_A2B(A, training=False)[3]
-    B2A = G_B2A(B, training=False)
-    A2B_mask = G_A2B(A, training=False)[1]
-    A2B2A = G_B2A(A2B, training=False)
-    B2A2B = G_A2B(B2A, training=False)[0]
-    B2A2B_mask = G_A2B(B2A, training=False)[1]
-    return A2B[0:1, :, :, :], B2A[0:1, :, :, :], A2B_mask[0:1, :, :, :], A2B2A[0:1, :, :, :], \
-           B2A2B[0:1, :, :, :], B2A2B_mask[0:1, :, :, :], m[0:1, :, :, :], n[0:1, :, :, :]
+def sample(A_Test, B_Test):
+    A2B_Test = G_A2B(A_Test, training=False)[0]
+    m_Test = G_A2B(A_Test, training=False)[2]
+    n_Test = G_A2B(A_Test, training=False)[3]
+    B2A_Test = G_B2A(B_Test, training=False)
+    A2B_mask_Test = G_A2B(A_Test, training=False)[1]
+    A2B2A_Test = G_B2A(A2B_Test, training=False)
+    B2A2B_Test = G_A2B(B2A_Test, training=False)[0]
+    B2A2B_mask_Test = G_A2B(B2A_Test, training=False)[1]
+    return A2B_Test[0:1, :, :, :], B2A_Test[0:1, :, :, :], A2B_mask_Test[0:1, :, :, :], A2B2A_Test[0:1, :, :, :], \
+           B2A2B_Test[0:1, :, :, :], B2A2B_mask_Test[0:1, :, :, :], m_Test[0:1, :, :, :], n_Test[0:1, :, :, :]
 
 
 # ==============================================================================
@@ -256,7 +255,21 @@ except Exception as e:
 
 module_dir = py.join(output_dir, 'module_code')
 py.mkdir(module_dir)
+
+# 本地复制源代码，便于复现(模型文件、数据文件、训练文件、测试文件)
+# 冷代码
+shutil.copytree('imlib', module_dir)
+shutil.copytree('pylib', module_dir)
+shutil.copytree('tf2gan', module_dir)
+shutil.copytree('tf2gan', module_dir)
+
+# 个人热代码
 shutil.copy('module.py', module_dir)
+shutil.copy('data.py', module_dir)
+shutil.copy('train_comet.py', module_dir)
+shutil.copy('train_comet.py', module_dir)
+
+
 # summary
 training = True
 if training:
@@ -293,7 +306,8 @@ if training:
                         A, B = next(test_iter)
                         A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n = sample(A, B)
                         img = im.immerge(np.concatenate(
-                            [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n], axis=0),
+                            [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n],
+                            axis=0),
                             n_rows=2)
                         im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))
                         print(G_loss_dict, D_loss_dict)

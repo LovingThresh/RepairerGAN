@@ -33,7 +33,7 @@ class Checkpoint:
 
 def summary(name_data_dict,
             step=None,
-            types=['mean', 'std', 'max', 'min', 'sparsity', 'histogram'],
+            types=None,
             historgram_buckets=None,
             name='summary'):
     """Summary.
@@ -43,6 +43,9 @@ def summary(name_data_dict,
     >>> summary({'a': data_a, 'b': data_b})
 
     """
+    if types is None:
+        types = ['mean', 'std', 'max', 'min', 'sparsity', 'histogram']
+
     def _summary(name, data):
         if data.shape == ():
             tf.summary.scalar(name, data, step=step)

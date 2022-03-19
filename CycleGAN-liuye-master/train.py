@@ -160,7 +160,8 @@ def train_G(A_Generator, B_Generator):
 
         s_loss_1 = ssim_loss(A2B_m, A2B_n)
         s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
-        s_loss_3 = ssim_loss(B2B_m, B2B_n)
+        # s_loss_3 = ssim_loss(B2B_m, B2B_n)
+        s_loss_3 = ssim_loss(A, A2B_m)
 
         G_loss = 2 * (A2B_g_loss + B2A_g_loss) + (A2B2A_cycle_loss + B2A2B_cycle_loss) * args.cycle_loss_weight + (
                 A2A_id_loss + B2B_id_loss) * args.identity_loss_weight + (s_loss_1 + s_loss_2 + s_loss_3)
@@ -190,8 +191,10 @@ def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
 
         A_d_loss, B2A_d_loss = d_loss_fn(A_d_logits, B2A_d_logits)
         B_d_loss, A2B_d_loss = d_loss_fn(B_d_logits, A2B_d_logits)
-        D_A_gp = gan.gradient_penalty(functools.partial(D_A, training=True), A_True, B2A_Fake, mode=args.gradient_penalty_mode)
-        D_B_gp = gan.gradient_penalty(functools.partial(D_B, training=True), B_True, A2B_Fake, mode=args.gradient_penalty_mode)
+        D_A_gp = gan.gradient_penalty(functools.partial(D_A, training=True), A_True, B2A_Fake,
+                                      mode=args.gradient_penalty_mode)
+        D_B_gp = gan.gradient_penalty(functools.partial(D_B, training=True), B_True, A2B_Fake,
+                                      mode=args.gradient_penalty_mode)
 
         D_loss = (A_d_loss + B2A_d_loss) + (B_d_loss + A2B_d_loss) + (D_A_gp + D_B_gp) * args.gradient_penalty_weight
 
@@ -268,7 +271,6 @@ shutil.copy('module.py', module_dir)
 shutil.copy('data.py', module_dir)
 shutil.copy('train_comet.py', module_dir)
 shutil.copy('train_comet.py', module_dir)
-
 
 # summary
 training = True

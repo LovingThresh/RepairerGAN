@@ -35,15 +35,15 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_v2_Base',
-    'device': '3080Ti',
+    'ex_number': 'AttentionGAN_Base_B',
+    'device': '3090',
     'data_type': 'crack',
-    'datasets_dir': r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets',
+    'datasets_dir': r'E:\liuye\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 2,
-    'epochs': 10,
-    'epoch_decay': 5,
+    'batch_size': 5,
+    'epochs': 20,
+    'epoch_decay': 10,
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
     'beta_1': 0.5,
@@ -78,7 +78,9 @@ if experiment_button:
     hyper_params['ex_key'] = experiment.get_key()
     experiment.log_parameters(hyper_params)
     experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
-    experiment.add_tag('AttentionGAN_v2')
+    experiment.add_tag('AttentionGAN')
+    experiment.add_tag('Base')
+    experiment.add_tag('Repeat')
 
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:

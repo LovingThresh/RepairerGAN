@@ -26,6 +26,9 @@ experiment_button = True
 training = True
 experiment = object
 
+if experiment:
+    pass
+
 
 if experiment_button:
     experiment = Experiment(
@@ -35,13 +38,13 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_B',
-    'device': '3090',
+    'ex_number': 'AttentionGAN_Base_B_delete_ssim_3',
+    'device': '3080Ti',
     'data_type': 'crack',
-    'datasets_dir': r'E:\liuye\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets',
+    'datasets_dir': r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 5,
+    'batch_size': 3,
     'epochs': 20,
     'epoch_decay': 10,
     'learning_rate_G': 0.0002,
@@ -80,7 +83,7 @@ if experiment_button:
     experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
     experiment.add_tag('AttentionGAN')
     experiment.add_tag('Base')
-    experiment.add_tag('Repeat')
+    experiment.add_tag('Delete')
 
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
@@ -167,8 +170,8 @@ def train_G(A_True, B_True):
         B2A2B_n = G_A2B(B2A_Fake, training=True)[3]
         A2A = G_B2A(A_True, training=True)
         B2B = G_A2B(B_True, training=True)[0]
-        B2B_m = G_A2B(B_True, training=True)[2]
-        B2B_n = G_A2B(B_True, training=True)[3]
+        # B2B_m = G_A2B(B_True, training=True)[2]
+        # B2B_n = G_A2B(B_True, training=True)[3]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
         # A2B2A, _, _ = G_B2A(A2B, training=True)
@@ -198,12 +201,12 @@ def train_G(A_True, B_True):
 
         s_loss_1 = ssim_loss(A2B_m, A2B_n)
         s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
-        s_loss_3 = ssim_loss(B2B_m, B2B_n)
+        # s_loss_3 = ssim_loss(B2B_m, B2B_n)
 
         G_loss = hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
                  hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
                  hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
-                 hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3)
+                 hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2)
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
     G_optimizer.apply_gradients(zip(G_grad, G_A2B.trainable_variables + G_B2A.trainable_variables))
@@ -214,7 +217,7 @@ def train_G(A_True, B_True):
                                 'B2A2B_cycle_loss': B2A2B_cycle_loss,
                                 'A2A_id_loss': A2A_id_loss,
                                 'B2B_id_loss': B2B_id_loss,
-                                's_loss': s_loss_1 + s_loss_2 + s_loss_3
+                                's_loss': s_loss_1 + s_loss_2
                                 }
     # 'loss_reg_A': loss_reg_A,
     # 'loss_reg_B': loss_reg_B

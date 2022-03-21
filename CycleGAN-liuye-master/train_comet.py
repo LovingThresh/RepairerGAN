@@ -38,13 +38,13 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_B_delete_ssim_3',
-    'device': '3080Ti',
+    'ex_number': 'AttentionGAN_Base_B2B_&add_std',
+    'device': '3090',
     'data_type': 'crack',
-    'datasets_dir': r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets',
+    'datasets_dir': r'datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 3,
+    'batch_size': 5,
     'epochs': 20,
     'epoch_decay': 10,
     'learning_rate_G': 0.0002,
@@ -57,6 +57,7 @@ hyper_params = {
     'cycle_loss_weight': 10.0,
     'identity_loss_weight': 10.0,
     'ssim_loss_weight': 1.0,
+    'std_loss_weight': 50.0,
     'pool_size': 50,
     'lambda_reg': 1e-6,
     'starting_rate': 0.01
@@ -83,7 +84,8 @@ if experiment_button:
     experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
     experiment.add_tag('AttentionGAN')
     experiment.add_tag('Base')
-    experiment.add_tag('Delete')
+    experiment.add_tag('Std')
+    experiment.add_tag('B2B')
 
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
@@ -93,8 +95,8 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # ==============================================================================
 
 # 这位大佬Dataset制作好复杂哦
-A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'trainA'), '*.jpg')
-B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'trainB'), '*.jpg')
+A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive'), '*.jpg')
+B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative'), '*.jpg')
 A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['batch_size'],
                                                  hyper_params['load_size'],
@@ -157,7 +159,7 @@ D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 
-@tf.function
+# @tf.function
 def train_G(A_True, B_True):
     with tf.GradientTape() as t:
         A2B_Fake = G_A2B(A_True, training=True)[0]
@@ -170,8 +172,8 @@ def train_G(A_True, B_True):
         B2A2B_n = G_A2B(B2A_Fake, training=True)[3]
         A2A = G_B2A(A_True, training=True)
         B2B = G_A2B(B_True, training=True)[0]
-        # B2B_m = G_A2B(B_True, training=True)[2]
-        # B2B_n = G_A2B(B_True, training=True)[3]
+        B2B_m = G_A2B(B_True, training=True)[2]
+        B2B_n = G_A2B(B_True, training=True)[3]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
         # A2B2A, _, _ = G_B2A(A2B, training=True)
@@ -189,6 +191,8 @@ def train_G(A_True, B_True):
         A2A_id_loss = identity_loss_fn(A_True, A2A)
         B2B_id_loss = identity_loss_fn(B_True, B2B)
 
+        std_loss_1 = tf.math.reduce_std(A2B_Fake) - tf.math.reduce_std(B_True)
+
         # loss_reg_A = args.lambda_reg * (
         #         K.sum(K.abs(mask_A[:, :-1, :, :] - mask_A[:, 1:, :, :])) +
         #         K.sum(K.abs(mask_A[:, :, :-1, :] - mask_A[:, :, 1:, :])))
@@ -201,12 +205,13 @@ def train_G(A_True, B_True):
 
         s_loss_1 = ssim_loss(A2B_m, A2B_n)
         s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
-        # s_loss_3 = ssim_loss(B2B_m, B2B_n)
+        s_loss_3 = ssim_loss(B2B_m, B2B_n)
 
         G_loss = hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
                  hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
                  hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
-                 hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2)
+                 hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3) + \
+                 hyper_params['std_loss_weight'] * std_loss_1
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
     G_optimizer.apply_gradients(zip(G_grad, G_A2B.trainable_variables + G_B2A.trainable_variables))
@@ -217,13 +222,14 @@ def train_G(A_True, B_True):
                                 'B2A2B_cycle_loss': B2A2B_cycle_loss,
                                 'A2A_id_loss': A2A_id_loss,
                                 'B2B_id_loss': B2B_id_loss,
-                                's_loss': s_loss_1 + s_loss_2
+                                's_loss': s_loss_1 + s_loss_2 + s_loss_3,
+                                'std_loss': std_loss_1
                                 }
     # 'loss_reg_A': loss_reg_A,
     # 'loss_reg_B': loss_reg_B
 
 
-@tf.function
+# @tf.function
 def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
     with tf.GradientTape() as t:
         A_d_logits = D_A(A_True, training=True)
@@ -272,8 +278,12 @@ def sample(A_Test, B_Test):
     A2B2A_Test = G_B2A(A2B_Test, training=False)
     B2A2B_Test = G_A2B(B2A_Test, training=False)[0]
     B2A2B_mask_Test = G_A2B(B2A_Test, training=False)[1]
+    B2B_Fake = G_A2B(B_Test, training=False)[0]
+    B2B_mask_Test = G_A2B(B2B_Fake, training=False)[1]
+
     return A2B_Test[0:1, :, :, :], B2A_Test[0:1, :, :, :], A2B_mask_Test[0:1, :, :, :], A2B2A_Test[0:1, :, :, :], \
-           B2A2B_Test[0:1, :, :, :], B2A2B_mask_Test[0:1, :, :, :], m_Test[0:1, :, :, :], n_Test[0:1, :, :, :]
+           B2A2B_Test[0:1, :, :, :], B2A2B_mask_Test[0:1, :, :, :], m_Test[0:1, :, :, :], n_Test[0:1, :, :, :], \
+           B2B_Fake[0:1, :, :, :], B2B_mask_Test[0:1, :, :, :]
 
 
 # ==============================================================================
@@ -366,9 +376,10 @@ def train(Step=0):
                 if sampling:
                     if G_optimizer.iterations.numpy() % 100 == 0:
                         A, B = next(test_iter)
-                        A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n = sample(A, B)
+                        A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n, B2B, B2B_mask = sample(A, B)
                         img = im.immerge(np.concatenate(
-                            [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n],
+                            [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, B2B,
+                             B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n, B2B_mask],
                             axis=0),
                             n_rows=2)
                         im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))

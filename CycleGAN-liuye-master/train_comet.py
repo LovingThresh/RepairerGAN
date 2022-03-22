@@ -22,7 +22,7 @@ import tqdm
 import data
 import module
 
-experiment_button = True
+experiment_button = False
 training = True
 experiment = object
 
@@ -37,7 +37,7 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_B2B',
+    'ex_number': 'AttentionGAN_Base_A2A',
     'device': '3080Ti',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
@@ -48,7 +48,7 @@ hyper_params = {
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
-    'learning_rate_D_B_weight': 0.1,
+    'learning_rate_D_B_weight': 1.0,
     'beta_1': 0.5,
     'adversarial_loss_mode': 'lsgan',
     'gradient_penalty_mode': 'none',
@@ -82,7 +82,8 @@ if experiment_button:
     experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
     experiment.add_tag('AttentionGAN')
     experiment.add_tag('Base')
-    experiment.add_tag('B2B')
+    experiment.add_tag('A2A')
+    experiment.add_tag('RMSprop')
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
     json.dump(hyper_params, fp)
@@ -90,7 +91,7 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # =                                    data                                    =
 # ==============================================================================
 
-# 这位大佬Dataset制作好复杂哦
+# Dataset制作
 A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive'), '*.jpg')
 B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative'), '*.jpg')
 A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
@@ -99,7 +100,7 @@ A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['crop_size'],
                                                  training=True, repeat=False)
 
-# 用来保存假样本，但是有什么用呢？
+# 用来保存假样本
 A2B_pool = data.ItemPool(hyper_params['pool_size'])
 B2A_pool = data.ItemPool(hyper_params['pool_size'])
 
@@ -147,10 +148,10 @@ G_lr_scheduler = module.LinearDecay(hyper_params['learning_rate_G'], hyper_param
 D_lr_scheduler = module.LinearDecay(hyper_params['learning_rate_D'], hyper_params['epochs'] * len_dataset,
                                     hyper_params['epoch_decay'] * len_dataset)
 
-# G_optimizer = keras.optimizers.RMSprop(learning_rate=G_lr_scheduler)
-# D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
-G_optimizer = keras.optimizers.Adam(learning_rate=G_lr_scheduler)
-D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler)
+G_optimizer = keras.optimizers.RMSprop(learning_rate=G_lr_scheduler)
+D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
+# G_optimizer = keras.optimizers.Adam(learning_rate=G_lr_scheduler)
+# D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler)
 
 # ==============================================================================
 # =                                 train step                                 =
@@ -276,7 +277,7 @@ def sample(A_Test, B_Test):
     A2B2A_Test = G_B2A(A2B_Test, training=False)
     B2A2B_Test = G_A2B(B2A_Test, training=False)[0]
     B2A2B_mask_Test = G_A2B(B2A_Test, training=False)[1]
-    A2A_Fake = G_B2A(A_Test, training=False)[0]
+    A2A_Fake = G_B2A(A_Test, training=False)
     A2A_mask_Test = G_A2B(A2A_Fake, training=False)[1]
 
     return A2B_Test[0:1, :, :, :], B2A_Test[0:1, :, :, :], A2B_mask_Test[0:1, :, :, :], A2B2A_Test[0:1, :, :, :], \

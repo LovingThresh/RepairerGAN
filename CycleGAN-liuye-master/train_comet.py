@@ -15,13 +15,14 @@ import imlib as im
 import numpy as np
 import pylib as py
 import tensorflow as tf
-import tensorflow.keras as keras
+
 import tf2lib as tl
 import tf2gan as gan
 import tqdm
 import data
 import module
 
+keras = tf.keras
 experiment_button = True
 training = True
 experiment = object
@@ -43,7 +44,7 @@ hyper_params = {
     'datasets_dir': r'datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 20,
+    'batch_size': 50,
     'epochs': 10,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -71,8 +72,8 @@ b[13] = '-'
 b[16] = '-'
 output_dir = ''.join(b)
 if hyper_params['device'] == 'A100':
-    output_dir = r'/root/autodl-tmp/Cycle_GAN/output/{}'.format(output_dir)
-    hyper_params['batch_size'] = 20
+    output_dir = r'/root/autodl-tmp/Cycle_GAN/{}'.format(output_dir)
+    hyper_params['batch_size'] = 50
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
@@ -91,6 +92,7 @@ if experiment_button:
     experiment.add_tag('AttentionGAN')
     experiment.add_tag('Base')
     experiment.add_tag('A2A')
+    experiment.add_tag('A100')
     experiment.add_tag('RMSprop')
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
@@ -380,7 +382,10 @@ def train(Step=0):
                 # sample
                 sampling = True
                 if sampling:
-                    if G_optimizer.iterations.numpy() % 100 == 0:
+                    num = 100
+                    if hyper_params['device'] == 'A100':
+                        num = 10
+                    if G_optimizer.iterations.numpy() % num == 0:
                         A, B = next(test_iter)
                         A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n, A2A, A2A_mask = sample(A, B)
                         img = im.immerge(np.concatenate(
@@ -389,6 +394,8 @@ def train(Step=0):
                             axis=0),
                             n_rows=2)
                         im.imwrite(img, py.join(sample_dir, 'iter-%09d.jpg' % G_optimizer.iterations.numpy()))
+                        if hyper_params['device'] == 'A100':
+                            experiment.log_image(img, 'iter-%09d.jpg' % G_optimizer.iterations.numpy())
                         print(G_loss_dict, D_loss_dict)
 
             # save checkpoint

@@ -38,12 +38,12 @@ if experiment_button:
 
 hyper_params = {
     'ex_number': 'AttentionGAN_Base_A2A_2',
-    'device': '3080Ti',
+    'device': 'A100',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 3,
+    'batch_size': 20,
     'epochs': 10,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -72,8 +72,13 @@ b[16] = '-'
 output_dir = ''.join(b)
 if hyper_params['device'] == 'A100':
     output_dir = r'/root/autodl-tmp/Cycle_GAN/output/{}'.format(output_dir)
+    hyper_params['batch_size'] = 20
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
+    if hyper_params['device'] == '3080Ti':
+        hyper_params['batch_size'] = 3
+    else:
+        hyper_params['batch_size'] = 5
 py.mkdir(output_dir)
 
 hyper_params['output_dir'] = output_dir

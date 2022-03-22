@@ -37,19 +37,19 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_A2A_Fix',
+    'ex_number': 'AttentionGAN_Base_A2A&Del_DB',
     'device': '3090',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 1,
+    'batch_size': 5,
     'epochs': 10,
     'epoch_decay': 2,
     'optimizer': 'Adam',
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
-    'learning_rate_D_B_weight': 0.25,
+    'learning_rate_D_B_weight': 1.0,
     'beta_1': 0.5,
     'adversarial_loss_mode': 'lsgan',
     'gradient_penalty_mode': 'none',
@@ -84,8 +84,8 @@ if experiment_button:
     experiment.add_tag('AttentionGAN')
     experiment.add_tag('Base')
     experiment.add_tag('A2A')
-    experiment.add_tag('Low_D_B_rate')
-    experiment.add_tag('Adam')
+    experiment.add_tag('Del_DB')
+    experiment.add_tag('RMSprop')
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
     json.dump(hyper_params, fp)
@@ -124,7 +124,7 @@ G_B2A = module.AttentionCycleGAN_v1_Generator(input_shape=(hyper_params['crop_si
                                               attention=False)
 
 D_A = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3))
-D_B = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3))
+# D_B = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3))
 
 
 # ==============================================================================
@@ -150,10 +150,10 @@ G_lr_scheduler = module.LinearDecay(hyper_params['learning_rate_G'], hyper_param
 D_lr_scheduler = module.LinearDecay(hyper_params['learning_rate_D'], hyper_params['epochs'] * len_dataset,
                                     hyper_params['epoch_decay'] * len_dataset)
 
-# G_optimizer = keras.optimizers.RMSprop(learning_rate=G_lr_scheduler)
-# D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
-G_optimizer = keras.optimizers.Adam(learning_rate=G_lr_scheduler)
-D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler)
+G_optimizer = keras.optimizers.RMSprop(learning_rate=G_lr_scheduler)
+D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
+# G_optimizer = keras.optimizers.Adam(learning_rate=G_lr_scheduler)
+# D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler)
 
 # ==============================================================================
 # =                                 train step                                 =
@@ -182,7 +182,7 @@ def train_G(A_True, B_True):
         # A2A, _, _ = G_B2A(A, training=True)
         # B2B, _, _ = G_A2B(B, training=True)
 
-        A2B_d_logits = D_B(A2B_Fake, training=True)
+        A2B_d_logits = D_A(A2B_Fake, training=True)
         B2A_d_logits = D_A(B2A_Fake, training=True)
 
         A2B_g_loss = g_loss_fn(A2B_d_logits)
@@ -235,21 +235,21 @@ def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
     with tf.GradientTape() as t:
         A_d_logits = D_A(A_True, training=True)
         B2A_d_logits = D_A(B2A_Fake, training=True)
-        B_d_logits = D_B(B_True, training=True)
-        A2B_d_logits = D_B(A2B_Fake, training=True)
+        B_d_logits = D_A(B_True, training=True)
+        A2B_d_logits = D_A(A2B_Fake, training=True)
 
         A_d_loss, B2A_d_loss = d_loss_fn(A_d_logits, B2A_d_logits)
         B_d_loss, A2B_d_loss = d_loss_fn(B_d_logits, A2B_d_logits)
         D_A_gp = gan.gradient_penalty(functools.partial(D_A, training=True), A_True, B2A_Fake,
                                       mode=hyper_params['gradient_penalty_mode'])
-        D_B_gp = gan.gradient_penalty(functools.partial(D_B, training=True), B_True, A2B_Fake,
+        D_B_gp = gan.gradient_penalty(functools.partial(D_A, training=True), B_True, A2B_Fake,
                                       mode=hyper_params['gradient_penalty_mode'])
 
         D_loss = (A_d_loss + B2A_d_loss) + hyper_params['learning_rate_D_B_weight'] * (B_d_loss + A2B_d_loss) + \
                  hyper_params['gradient_penalty_weight'] * (D_A_gp + D_B_gp)
 
-    D_grad = t.gradient(D_loss, D_A.trainable_variables + D_B.trainable_variables)
-    D_optimizer.apply_gradients(zip(D_grad, D_A.trainable_variables + D_B.trainable_variables))
+    D_grad = t.gradient(D_loss, D_A.trainable_variables + D_A.trainable_variables)
+    D_optimizer.apply_gradients(zip(D_grad, D_A.trainable_variables + D_A.trainable_variables))
 
     return {'A_d_loss': A_d_loss + B2A_d_loss,
             'B_d_loss': B_d_loss + A2B_d_loss,
@@ -297,7 +297,7 @@ ep_cnt = tf.Variable(initial_value=0, trainable=False, dtype=tf.int64)
 checkpoint = tl.Checkpoint(dict(G_A2B=G_A2B,
                                 G_B2A=G_B2A,
                                 D_A=D_A,
-                                D_B=D_B,
+                                D_B=D_A,
                                 G_optimizer=G_optimizer,
                                 D_optimizer=D_optimizer,
                                 ep_cnt=ep_cnt),

@@ -370,7 +370,7 @@ class LinearDecay(keras.optimizers.schedules.LearningRateSchedule):
         self.current_learning_rate.assign(tf.cond(
             step >= self._step_decay,
             true_fn=lambda: self._initial_learning_rate * (
-                    1 - 1 / (self._steps - self._step_decay) * (step - self._step_decay)),
+                    1 - 1 / (self._steps - self._step_decay) * (step - self._step_decay)) * 0.5,
             false_fn=lambda: self._initial_learning_rate
         ))
         return self.current_learning_rate

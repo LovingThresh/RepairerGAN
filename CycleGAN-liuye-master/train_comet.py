@@ -37,18 +37,19 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_B2B',
-    'device': '3080Ti',
+    'ex_number': 'AttentionGAN_Base_A2A_Fix',
+    'device': '3090',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 3,
+    'batch_size': 1,
     'epochs': 10,
     'epoch_decay': 2,
+    'optimizer': 'Adam',
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
-    'learning_rate_D_B_weight': 0.1,
+    'learning_rate_D_B_weight': 0.25,
     'beta_1': 0.5,
     'adversarial_loss_mode': 'lsgan',
     'gradient_penalty_mode': 'none',
@@ -82,7 +83,9 @@ if experiment_button:
     experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
     experiment.add_tag('AttentionGAN')
     experiment.add_tag('Base')
-    experiment.add_tag('B2B')
+    experiment.add_tag('A2A')
+    experiment.add_tag('Low_D_B_rate')
+    experiment.add_tag('Adam')
 
 with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
     json.dump(hyper_params, fp)
@@ -157,7 +160,7 @@ D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 
-# @tf.function
+@tf.function
 def train_G(A_True, B_True):
     with tf.GradientTape() as t:
         A2B_Fake = G_A2B(A_True, training=True)[0]
@@ -227,7 +230,7 @@ def train_G(A_True, B_True):
     # 'loss_reg_B': loss_reg_B
 
 
-# @tf.function
+@tf.function
 def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
     with tf.GradientTape() as t:
         A_d_logits = D_A(A_True, training=True)
@@ -276,7 +279,7 @@ def sample(A_Test, B_Test):
     A2B2A_Test = G_B2A(A2B_Test, training=False)
     B2A2B_Test = G_A2B(B2A_Test, training=False)[0]
     B2A2B_mask_Test = G_A2B(B2A_Test, training=False)[1]
-    A2A_Fake = G_B2A(A_Test, training=False)[0]
+    A2A_Fake = G_B2A(A_Test, training=False)
     A2A_mask_Test = G_A2B(A2A_Fake, training=False)[1]
 
     return A2B_Test[0:1, :, :, :], B2A_Test[0:1, :, :, :], A2B_mask_Test[0:1, :, :, :], A2B2A_Test[0:1, :, :, :], \

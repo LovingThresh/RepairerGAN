@@ -22,7 +22,7 @@ import tqdm
 import data
 import module
 
-experiment_button = False
+experiment_button = True
 training = True
 experiment = object
 
@@ -37,7 +37,7 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_A2A',
+    'ex_number': 'AttentionGAN_Base_A2A_2',
     'device': '3080Ti',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
@@ -70,7 +70,10 @@ b[10] = '-'
 b[13] = '-'
 b[16] = '-'
 output_dir = ''.join(b)
-output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
+if hyper_params['device'] == 'A100':
+    output_dir = r'/root/autodl-tmp/Cycle_GAN/output/{}'.format(output_dir)
+elif hyper_params['device'] == '3080Ti' or '3090':
+    output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
 py.mkdir(output_dir)
 
 hyper_params['output_dir'] = output_dir
@@ -158,7 +161,7 @@ D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 
-# @tf.function
+@tf.function
 def train_G(A_True, B_True):
     with tf.GradientTape() as t:
         A2B_Fake = G_A2B(A_True, training=True)[0]
@@ -228,7 +231,7 @@ def train_G(A_True, B_True):
     # 'loss_reg_B': loss_reg_B
 
 
-# @tf.function
+@tf.function
 def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
     with tf.GradientTape() as t:
         A_d_logits = D_A(A_True, training=True)

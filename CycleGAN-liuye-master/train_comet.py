@@ -38,14 +38,14 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_A2A_Weak_D',
-    'device': '3090',
+    'ex_number': 'AttentionGAN_Base_A2A_Weak_D_2',
+    'device': '3080Ti',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 227,
     'crop_size': 224,
-    'batch_size': 5,
-    'epochs': 10,
+    'batch_size': 3,
+    'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
@@ -131,8 +131,10 @@ G_A2B = module.AttentionCycleGAN_v1_Generator(input_shape=(hyper_params['crop_si
 G_B2A = module.AttentionCycleGAN_v1_Generator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3),
                                               attention=False)
 
-D_A = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32)
-D_B = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32)
+D_A = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32,
+                               n_downsamplings=3)
+D_B = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32,
+                               n_downsamplings=3)
 
 
 # ==============================================================================

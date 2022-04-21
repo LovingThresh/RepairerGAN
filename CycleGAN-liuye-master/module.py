@@ -1,9 +1,8 @@
 import numpy as np
 import tensorflow as tf
 import tensorflow_addons as tfa
-import tensorflow.keras as keras
-from tensorflow.keras.layers import *
-from tensorflow.keras.utils import plot_model
+from tensorflow import keras as keras
+from tensorflow.python.keras.layers import *
 
 
 # ==============================================================================

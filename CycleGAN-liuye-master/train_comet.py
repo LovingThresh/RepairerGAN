@@ -5,24 +5,26 @@
 # @File    : train_comet.py
 # @Software: PyCharm
 
-from comet_ml import Experiment
-import functools
+import json
+import os.path
 import shutil
 import datetime
-import json
+import functools
+from comet_ml import Experiment
 
 import imlib as im
 import numpy as np
 import pylib as py
 import tensorflow as tf
+import tensorflow.keras as keras
 
+import tqdm
+import Cycle_data as data
+import module
+import Metrics
 import tf2lib as tl
 import tf2gan as gan
-import tqdm
-import data
-import module
 
-keras = tf.keras
 experiment_button = False
 training = True
 experiment = object
@@ -40,11 +42,11 @@ if experiment_button:
 hyper_params = {
     'ex_number': 'AttentionGAN_Base_A2A_Weak_D_2',
     'device': '3080Ti',
-    'data_type': 'D',
+    'data_type': 'crack',
     'datasets_dir': r'datasets',
-    'load_size': 256,
-    'crop_size': 256,
-    'batch_size': 3,
+    'load_size': 224,
+    'crop_size': 224,
+    'batch_size': 1,
     'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -102,21 +104,33 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # ==============================================================================
 
 # Dataset制作
-A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'CD'), '*.jpg')
-B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'UD'), '*.jpg')
+A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive'), '*.jpg')
+B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative'), '*.jpg')
 A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['batch_size'],
                                                  hyper_params['load_size'],
                                                  hyper_params['crop_size'],
                                                  training=True, repeat=True)
 
+# Segmentation数据制作
+A_img_val_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini'), '*.jpg')
+A_mask_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini_mask'), '*.jpg')
+A_mask_dataset, len_mask_dataset = data.make_zip_dataset(A_img_val_paths, A_mask_paths,
+                                                         hyper_params['batch_size'],
+                                                         hyper_params['load_size'],
+                                                         hyper_params['crop_size'],
+                                                         training=True,
+                                                         shuffle=False,
+                                                         repeat=False,
+                                                         mask=True)
+
 # 用来保存假样本
 A2B_pool = data.ItemPool(hyper_params['pool_size'])
 B2A_pool = data.ItemPool(hyper_params['pool_size'])
 
 # 测试样本，可以略过
-A_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'CD'), '*.jpg')
-B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'UD'), '*.jpg')
+A_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini'), '*.jpg')
+B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative_mini'), '*.jpg')
 A_B_dataset_test, _ = data.make_zip_dataset(
     A_img_paths_test, B_img_paths_test, hyper_params['batch_size'], hyper_params['load_size'],
     hyper_params['crop_size'],
@@ -162,6 +176,8 @@ D_lr_scheduler = module.LinearDecay(hyper_params['learning_rate_D'], hyper_param
 
 G_optimizer = keras.optimizers.RMSprop(learning_rate=G_lr_scheduler)
 D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
+
+
 # G_optimizer = keras.optimizers.Adam(learning_rate=G_lr_scheduler)
 # D_optimizer = keras.optimizers.Adam(learning_rate=D_lr_scheduler)
 
@@ -334,7 +350,7 @@ shutil.copytree('tf2lib', '{}/{}'.format(module_dir, 'tf2lib'))
 
 # 个人热代码
 shutil.copy('module.py', module_dir)
-shutil.copy('data.py', module_dir)
+shutil.copy('Cycle_data.py', module_dir)
 shutil.copy('train_comet.py', module_dir)
 shutil.copy('test.py', module_dir)
 
@@ -349,6 +365,19 @@ if experiment_button:
     experiment.log_code('data.py')
     experiment.log_code('train_comet.py')
     experiment.log_code('test.py')
+
+
+# ==============================================================================
+# =                     Weak Supervision Val                                   =
+# ==============================================================================
+def Validation(model, dataset):
+    model = keras.models.Model(inputs=model.inputs, outputs=[1 - model.outputs[0][:, :, :, 0:1]])
+    initial_learning_rate = 5e-5
+    optimizer = keras.optimizers.RMSprop(initial_learning_rate)
+    model.compile(optimizer=optimizer,
+                  loss=keras.losses.BinaryCrossentropy(),
+                  metrics=Metrics.METRICS)
+    return model.evaluate(dataset), model
 
 
 # ==============================================================================
@@ -384,12 +413,22 @@ def train(Step=0):
                 # sample
                 sampling = True
                 if sampling:
-                    num = 100
+                    num = 10
                     if hyper_params['device'] == 'A100':
                         num = 10
                     if G_optimizer.iterations.numpy() % num == 0:
                         A, B = next(test_iter)
                         A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n, A2A, A2A_mask = sample(A, B)
+                        metrics_info, model = Validation(G_A2B, A_mask_dataset)
+                        m_iou = metrics_info[-1][-1]
+                        tl.summary(m_iou, step=G_optimizer.iterations, name='m_IoU')
+                        tl.summary(metrics_info[-1][0], step=G_optimizer.iterations, name='acc')
+                        tl.summary(metrics_info[-1][1], step=G_optimizer.iterations, name='m_Pr')
+                        tl.summary(metrics_info[-1][2], step=G_optimizer.iterations, name='m_Re')
+                        tl.summary(metrics_info[-1][3], step=G_optimizer.iterations, name='m_F1')
+                        if m_iou > 0.7:
+                            model.save(os.path.join(output_dir, 'save_model',
+                                                    '{}-{}-{}'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
                         img = im.immerge(np.concatenate(
                             [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, A2A,
                              B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n, A2A_mask],

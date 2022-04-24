@@ -4,7 +4,7 @@ import pylib as py
 import tensorflow as tf
 import tf2lib as tl
 
-import data
+import Cycle_data
 import module
 
 # ==============================================================================

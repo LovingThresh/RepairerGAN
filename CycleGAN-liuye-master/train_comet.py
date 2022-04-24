@@ -23,7 +23,7 @@ import data
 import module
 
 keras = tf.keras
-experiment_button = True
+experiment_button = False
 training = True
 experiment = object
 
@@ -40,10 +40,10 @@ if experiment_button:
 hyper_params = {
     'ex_number': 'AttentionGAN_Base_A2A_Weak_D_2',
     'device': '3080Ti',
-    'data_type': 'crack',
+    'data_type': 'D',
     'datasets_dir': r'datasets',
-    'load_size': 227,
-    'crop_size': 224,
+    'load_size': 256,
+    'crop_size': 256,
     'batch_size': 3,
     'epochs': 5,
     'epoch_decay': 2,
@@ -102,21 +102,21 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # ==============================================================================
 
 # Dataset制作
-A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive'), '*.jpg')
-B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative'), '*.jpg')
+A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'CD'), '*.jpg')
+B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'UD'), '*.jpg')
 A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['batch_size'],
                                                  hyper_params['load_size'],
                                                  hyper_params['crop_size'],
-                                                 training=True, repeat=False)
+                                                 training=True, repeat=True)
 
 # 用来保存假样本
 A2B_pool = data.ItemPool(hyper_params['pool_size'])
 B2A_pool = data.ItemPool(hyper_params['pool_size'])
 
 # 测试样本，可以略过
-A_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini'), '*.jpg')
-B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative_mini'), '*.jpg')
+A_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'CD'), '*.jpg')
+B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'UD'), '*.jpg')
 A_B_dataset_test, _ = data.make_zip_dataset(
     A_img_paths_test, B_img_paths_test, hyper_params['batch_size'], hyper_params['load_size'],
     hyper_params['crop_size'],

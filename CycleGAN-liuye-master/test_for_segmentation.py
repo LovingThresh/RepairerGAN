@@ -75,7 +75,7 @@ except Exception as e:
 
 
 G_A2B = checkpoint.checkpoint.G_A2B
-
+model = keras.models.Model(inputs=G_A2B.inputs, outputs=[G_A2B.outputs[1]])
 for i in file_list:
     test_data = cv2.imread(path + i)
     test_data = cv2.resize(test_data, dsize=(hyper_params['crop_size'], hyper_params['crop_size']))

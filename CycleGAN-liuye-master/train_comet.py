@@ -41,12 +41,12 @@ if experiment_button:
 
 hyper_params = {
     'ex_number': 'AttentionGAN_Base_A2A_Weak_D_2',
-    'device': '3080Ti',
+    'device': '3090',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 224,
     'crop_size': 224,
-    'batch_size': 1,
+    'batch_size': 5,
     'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -413,22 +413,22 @@ def train(Step=0):
                 # sample
                 sampling = True
                 if sampling:
-                    num = 10
+                    num = 100
                     if hyper_params['device'] == 'A100':
                         num = 10
                     if G_optimizer.iterations.numpy() % num == 0:
                         A, B = next(test_iter)
                         A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n, A2A, A2A_mask = sample(A, B)
                         metrics_info, model = Validation(G_A2B, A_mask_dataset)
-                        m_iou = metrics_info[-1][-1]
-                        tl.summary(m_iou, step=G_optimizer.iterations, name='m_IoU')
-                        tl.summary(metrics_info[-1][0], step=G_optimizer.iterations, name='acc')
-                        tl.summary(metrics_info[-1][1], step=G_optimizer.iterations, name='m_Pr')
-                        tl.summary(metrics_info[-1][2], step=G_optimizer.iterations, name='m_Re')
-                        tl.summary(metrics_info[-1][3], step=G_optimizer.iterations, name='m_F1')
+                        m_iou = metrics_info[-1]
+                        tl.summary({'m_IoU': tf.convert_to_tensor(m_iou)}, step=G_optimizer.iterations, name='m_IoU')
+                        tl.summary({'acc': tf.convert_to_tensor(metrics_info[1])}, step=G_optimizer.iterations, name='acc')
+                        tl.summary({'m_Pr': tf.convert_to_tensor(metrics_info[2])}, step=G_optimizer.iterations, name='m_Pr')
+                        tl.summary({'m_Re': tf.convert_to_tensor(metrics_info[3])}, step=G_optimizer.iterations, name='m_Re')
+                        tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations, name='m_F1')
                         if m_iou > 0.7:
                             model.save(os.path.join(output_dir, 'save_model',
-                                                    '{}-{}-{}'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
+                                                    '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
                         img = im.immerge(np.concatenate(
                             [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, A2A,
                              B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n, A2A_mask],

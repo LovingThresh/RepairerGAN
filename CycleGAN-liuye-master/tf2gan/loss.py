@@ -46,6 +46,7 @@ def get_lsgan_losses_fn():
     mse = tf.losses.MeanSquaredError()
 
     def d_loss_fn(r_logit, f_logit):
+
         r_loss = mse(tf.ones_like(r_logit), r_logit)
         f_loss = mse(tf.zeros_like(f_logit), f_logit)
         return r_loss, f_loss

@@ -4,12 +4,13 @@ import tf2lib as tl
 
 
 def make_dataset(img_paths, batch_size, load_size, crop_size, training, drop_remainder=True, shuffle=True, repeat=1,
-                 mask=False):
+                 mask=False, random_fn=True):
     if not mask:
         if training:
             @tf.function
             def _map_fn(img):  # preprocessing
-                img = tf.image.random_flip_left_right(img)
+                if random_fn:
+                    img = tf.image.random_flip_left_right(img)
                 img = tf.image.resize(img, [load_size, load_size])
                 img = tf.image.random_crop(img, [crop_size, crop_size, tf.shape(img)[-1]])
                 img = tf.clip_by_value(img, 0, 255) / 255.0  # or img = tl.minmax_norm(img)
@@ -38,7 +39,7 @@ def make_dataset(img_paths, batch_size, load_size, crop_size, training, drop_rem
 
 
 def make_zip_dataset(A_img_paths, B_img_paths, batch_size, load_size, crop_size,
-                     training, shuffle=True, repeat=False, mask=False):
+                     training, shuffle=True, repeat=False, mask=False, random_fn=True):
     # zip two datasets aligned by the longer one
     if repeat:
         A_repeat = B_repeat = None  # cycle both
@@ -51,9 +52,10 @@ def make_zip_dataset(A_img_paths, B_img_paths, batch_size, load_size, crop_size,
             B_repeat = 1
 
     A_dataset = make_dataset(A_img_paths, batch_size, load_size, crop_size,
-                             training, drop_remainder=True, shuffle=shuffle, repeat=A_repeat)
+                             training, drop_remainder=True, shuffle=shuffle, repeat=A_repeat, random_fn=random_fn)
     B_dataset = make_dataset(B_img_paths, batch_size, load_size, crop_size,
-                             training, drop_remainder=True, shuffle=shuffle, repeat=B_repeat, mask=mask)
+                             training, drop_remainder=True, shuffle=shuffle, repeat=B_repeat, mask=mask,
+                             random_fn=random_fn)
 
     A_B_dataset = tf.data.Dataset.zip((A_dataset, B_dataset))
     len_dataset = max(len(A_img_paths), len(B_img_paths)) // batch_size

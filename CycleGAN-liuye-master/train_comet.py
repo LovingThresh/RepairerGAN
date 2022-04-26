@@ -122,6 +122,7 @@ A_mask_dataset, len_mask_dataset = data.make_zip_dataset(A_img_val_paths, A_mask
                                                          training=True,
                                                          shuffle=False,
                                                          repeat=False,
+                                                         random_fn=False,
                                                          mask=True)
 
 # 用来保存假样本
@@ -422,10 +423,14 @@ def train(Step=0):
                         metrics_info, model = Validation(G_A2B, A_mask_dataset)
                         m_iou = metrics_info[-1]
                         tl.summary({'m_IoU': tf.convert_to_tensor(m_iou)}, step=G_optimizer.iterations, name='m_IoU')
-                        tl.summary({'acc': tf.convert_to_tensor(metrics_info[1])}, step=G_optimizer.iterations, name='acc')
-                        tl.summary({'m_Pr': tf.convert_to_tensor(metrics_info[2])}, step=G_optimizer.iterations, name='m_Pr')
-                        tl.summary({'m_Re': tf.convert_to_tensor(metrics_info[3])}, step=G_optimizer.iterations, name='m_Re')
-                        tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations, name='m_F1')
+                        tl.summary({'acc': tf.convert_to_tensor(metrics_info[1])}, step=G_optimizer.iterations,
+                                   name='acc')
+                        tl.summary({'m_Pr': tf.convert_to_tensor(metrics_info[2])}, step=G_optimizer.iterations,
+                                   name='m_Pr')
+                        tl.summary({'m_Re': tf.convert_to_tensor(metrics_info[3])}, step=G_optimizer.iterations,
+                                   name='m_Re')
+                        tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
+                                   name='m_F1')
                         if m_iou > 0.7:
                             model.save(os.path.join(output_dir, 'save_model',
                                                     '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
@@ -441,6 +446,18 @@ def train(Step=0):
 
             # save checkpoint
             checkpoint.save(ep)
+
+
+def validation():
+    model = keras.models.load_model(r'P:\GAN_CheckPoint\G_A2B/')
+    initial_learning_rate = 5e-5
+    optimizer = keras.optimizers.RMSprop(initial_learning_rate)
+    model = keras.models.Model(inputs=model.inputs, outputs=model.outputs[0][:, :, :, 0:1])
+    model.compile(optimizer=optimizer,
+                  loss=keras.losses.BinaryCrossentropy(),
+                  metrics=['accuracy', Metrics.M_Precision, Metrics.M_Recall, Metrics.M_F1, Metrics.M_IOU])
+
+    model.evaluate(A_mask_dataset)
 
 
 if training:

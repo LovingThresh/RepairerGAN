@@ -13,6 +13,6 @@ def minmax_norm(x, epsilon=1e-12):
 @tf.function
 def reshape(x, shape):
     x = tf.convert_to_tensor(x)
-    shape = [x.shape[i] if shape[i] == 0 else shape[i] for i in range(len(shape))]  # TODO(Lynn): is it slow here?
+    shape = [x.shape[i] if shape[i] == 0 else shape[i] for i in range(len(shape))]
     shape = [tf.shape(x)[i] if shape[i] is None else shape[i] for i in range(len(shape))]
     return tf.reshape(x, shape)

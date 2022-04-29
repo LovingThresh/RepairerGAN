@@ -41,7 +41,7 @@ if experiment_button:
 
 hyper_params = {
     'ex_number': 'AttentionGAN_Base_A2A_Weak_D_2',
-    'device': '3090',
+    'device': '3080Ti',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 224,

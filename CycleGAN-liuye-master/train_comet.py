@@ -25,10 +25,9 @@ import Metrics
 import tf2lib as tl
 import tf2gan as gan
 
-experiment_button = False
+experiment_button = True
 training = True
 experiment = object
-
 
 if experiment:
     pass
@@ -42,12 +41,12 @@ if experiment_button:
 
 hyper_params = {
     'ex_number': 'AttentionGAN_A2A_Weak_D_Bridge',
-    'device': '3090',
+    'device': 'A40',
     'data_type': 'bridge_crack',
     'datasets_dir': r'datasets',
     'load_size': 512,
     'crop_size': 512,
-    'batch_size': 5,
+    'batch_size': 4,
     'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -74,15 +73,15 @@ b[10] = '-'
 b[13] = '-'
 b[16] = '-'
 output_dir = ''.join(b)
-if hyper_params['device'] == 'A100':
+if hyper_params['device'] == 'A40':
     output_dir = r'/root/autodl-tmp/Cycle_GAN/{}'.format(output_dir)
-    hyper_params['batch_size'] = 50
+    hyper_params['batch_size'] = 4
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
         hyper_params['batch_size'] = 1
     else:
-        hyper_params['batch_size'] = 5
+        hyper_params['batch_size'] = 2
 py.mkdir(output_dir)
 
 hyper_params['output_dir'] = output_dir
@@ -113,7 +112,7 @@ A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['crop_size'],
                                                  training=True,
                                                  shuffle=False,
-                                                 repeat=12,
+                                                 repeat=1,
                                                  )
 
 # Segmentation数据制作
@@ -123,9 +122,9 @@ A_mask_dataset, len_mask_dataset = data.make_zip_dataset(A_img_val_paths, A_mask
                                                          hyper_params['batch_size'],
                                                          hyper_params['load_size'],
                                                          hyper_params['crop_size'],
-                                                         training=True,
+                                                         training=False,
                                                          shuffle=False,
-                                                         repeat=False,
+                                                         repeat=1,
                                                          random_fn=False,
                                                          mask=True)
 
@@ -390,7 +389,6 @@ def Validation(model, dataset):
 # =                     summary and train                                      =
 # ==============================================================================
 def train(Step=0):
-    global seed
     # sample
     test_iter = iter(A_B_dataset_test)
     sample_dir = py.join(output_dir, 'samples_training')
@@ -408,8 +406,6 @@ def train(Step=0):
             # train for an epoch
             for A, B in tqdm.tqdm(A_B_dataset, desc='Inner Epoch Loop', total=len_dataset):
 
-                seed = seed + 1
-
                 G_loss_dict, D_loss_dict = train_step(A, B)
 
                 # # summary
@@ -423,7 +419,7 @@ def train(Step=0):
                 # sample
                 sampling = True
                 if sampling:
-                    num = 100
+                    num = 50
                     if hyper_params['device'] == 'A100':
                         num = 10
                     if G_optimizer.iterations.numpy() % num == 0:
@@ -440,7 +436,8 @@ def train(Step=0):
                                    name='m_Re')
                         tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
                                    name='m_F1')
-                        if m_iou > 0.7:
+                        if m_iou > 0.6:
+                            os.mkdir(os.path.join(output_dir, 'save_model'))
                             model.save(os.path.join(output_dir, 'save_model',
                                                     '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
                         img = im.immerge(np.concatenate(

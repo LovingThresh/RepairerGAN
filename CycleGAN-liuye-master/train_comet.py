@@ -28,9 +28,8 @@ import tf2gan as gan
 experiment_button = False
 training = True
 experiment = object
-global seed
 
-seed = 1
+
 if experiment:
     pass
 
@@ -42,13 +41,13 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_A2A_Weak_D',
-    'device': '3080Ti',
+    'ex_number': 'AttentionGAN_A2A_Weak_D_Bridge',
+    'device': '3090',
     'data_type': 'bridge_crack',
     'datasets_dir': r'datasets',
     'load_size': 512,
     'crop_size': 512,
-    'batch_size': 1,
+    'batch_size': 5,
     'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -114,7 +113,7 @@ A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['crop_size'],
                                                  training=True,
                                                  shuffle=False,
-                                                 repeat=10,
+                                                 repeat=12,
                                                  )
 
 # Segmentation数据制作

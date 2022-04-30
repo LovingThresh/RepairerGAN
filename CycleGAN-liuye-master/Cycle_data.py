@@ -5,6 +5,10 @@ import tf2lib as tl
 
 def make_dataset(img_paths, batch_size, load_size, crop_size, training, drop_remainder=True, shuffle=True, repeat=1,
                  mask=False, random_fn=True):
+    # 分两种情况
+    # 第一种情况：一个是针对裂缝图像与裂缝的分割标签
+    # 第二种情况：一个是针对裂缝图像与非裂缝图像
+    # 这两种情况还区分训练状态与非训练状态
     if not mask:
         if training:
             @tf.function
@@ -42,7 +46,7 @@ def make_zip_dataset(A_img_paths, B_img_paths, batch_size, load_size, crop_size,
                      training, shuffle=True, repeat=False, mask=False, random_fn=True):
     # zip two datasets aligned by the longer one
     if repeat:
-        A_repeat = B_repeat = None  # cycle both
+        A_repeat = B_repeat = int(repeat)  # cycle both
     else:
         if len(A_img_paths) >= len(B_img_paths):
             A_repeat = 1
@@ -52,13 +56,17 @@ def make_zip_dataset(A_img_paths, B_img_paths, batch_size, load_size, crop_size,
             B_repeat = 1
 
     A_dataset = make_dataset(A_img_paths, batch_size, load_size, crop_size,
-                             training, drop_remainder=True, shuffle=shuffle, repeat=A_repeat, random_fn=random_fn)
+                             training, drop_remainder=True, shuffle=shuffle, repeat=A_repeat,
+                             random_fn=random_fn)
     B_dataset = make_dataset(B_img_paths, batch_size, load_size, crop_size,
                              training, drop_remainder=True, shuffle=shuffle, repeat=B_repeat, mask=mask,
                              random_fn=random_fn)
 
     A_B_dataset = tf.data.Dataset.zip((A_dataset, B_dataset))
-    len_dataset = max(len(A_img_paths), len(B_img_paths)) // batch_size
+    if repeat:
+        len_dataset = max(len(A_img_paths) * repeat, len(B_img_paths) * repeat) // batch_size
+    else:
+        len_dataset = max(len(A_img_paths), len(B_img_paths)) // batch_size
 
     return A_B_dataset, len_dataset
 

@@ -60,6 +60,16 @@ def memory_data_batch_dataset(memory_data,
 
     Parameters
     ----------
+    repeat
+    shuffle_buffer_size
+    shuffle
+    filter_after_map
+    n_map_threads
+    map_fn
+    filter_fn
+    n_prefetch_batch
+    drop_remainder
+    batch_size
     memory_data : nested structure of tensors/ndarrays/lists
 
     """
@@ -94,6 +104,16 @@ def disk_image_batch_dataset(img_paths,
 
     Parameters
     ----------
+    repeat
+    shuffle_buffer_size
+    shuffle
+    filter_after_map
+    n_map_threads
+    map_fn
+    filter_fn
+    n_prefetch_batch
+    drop_remainder
+    batch_size
     img_paths : 1d-tensor/ndarray/list of str
     labels : nested structure of tensors/ndarrays/lists
 

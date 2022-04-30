@@ -28,7 +28,9 @@ import tf2gan as gan
 experiment_button = False
 training = True
 experiment = object
+global seed
 
+seed = 1
 if experiment:
     pass
 
@@ -40,13 +42,13 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_Base_A2A_Weak_D_2',
+    'ex_number': 'AttentionGAN_A2A_Weak_D',
     'device': '3080Ti',
-    'data_type': 'crack',
+    'data_type': 'bridge_crack',
     'datasets_dir': r'datasets',
-    'load_size': 224,
-    'crop_size': 224,
-    'batch_size': 5,
+    'load_size': 512,
+    'crop_size': 512,
+    'batch_size': 1,
     'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
@@ -79,7 +81,7 @@ if hyper_params['device'] == 'A100':
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
-        hyper_params['batch_size'] = 3
+        hyper_params['batch_size'] = 1
     else:
         hyper_params['batch_size'] = 5
 py.mkdir(output_dir)
@@ -104,17 +106,20 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # ==============================================================================
 
 # Dataset制作
-A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive'), '*.jpg')
-B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative'), '*.jpg')
+A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'train_Positive'), '*.jpg')
+B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'train_Negative'), '*.jpg')
 A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['batch_size'],
                                                  hyper_params['load_size'],
                                                  hyper_params['crop_size'],
-                                                 training=True, repeat=True)
+                                                 training=True,
+                                                 shuffle=False,
+                                                 repeat=10,
+                                                 )
 
 # Segmentation数据制作
-A_img_val_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini'), '*.jpg')
-A_mask_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini_mask'), '*.jpg')
+A_img_val_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'test_Positive'), '*.jpg')
+A_mask_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'test_Positive_mask'), '*.jpg')
 A_mask_dataset, len_mask_dataset = data.make_zip_dataset(A_img_val_paths, A_mask_paths,
                                                          hyper_params['batch_size'],
                                                          hyper_params['load_size'],
@@ -130,12 +135,12 @@ A2B_pool = data.ItemPool(hyper_params['pool_size'])
 B2A_pool = data.ItemPool(hyper_params['pool_size'])
 
 # 测试样本，可以略过
-A_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Positive_mini'), '*.jpg')
-B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'Negative_mini'), '*.jpg')
+A_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'val_Positive'), '*.jpg')
+B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'val_Negative'), '*.jpg')
 A_B_dataset_test, _ = data.make_zip_dataset(
     A_img_paths_test, B_img_paths_test, hyper_params['batch_size'], hyper_params['load_size'],
     hyper_params['crop_size'],
-    training=False, repeat=True)
+    training=False, shuffle=False)
 
 # ==============================================================================
 # =                                   models                                   =
@@ -235,10 +240,11 @@ def train_G(A_True, B_True):
         s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
         s_loss_3 = ssim_loss(B2B_m, B2B_n)
 
-        G_loss = hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
-                 hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
-                 hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
-                 hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3)
+        G_loss = \
+        hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
+        hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
+        hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
+        hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3)
         # hyper_params['std_loss_weight'] * std_loss_1
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
@@ -273,7 +279,7 @@ def train_D(A_True, B_True, A2B_Fake, B2A_Fake):
                                       mode=hyper_params['gradient_penalty_mode'])
 
         D_loss = (A_d_loss + B2A_d_loss) + hyper_params['learning_rate_D_B_weight'] * (B_d_loss + A2B_d_loss) + \
-                 hyper_params['gradient_penalty_weight'] * (D_A_gp + D_B_gp)
+        hyper_params['gradient_penalty_weight'] * (D_A_gp + D_B_gp)
 
     D_grad = t.gradient(D_loss, D_A.trainable_variables + D_B.trainable_variables)
     D_optimizer.apply_gradients(zip(D_grad, D_A.trainable_variables + D_B.trainable_variables))
@@ -310,8 +316,8 @@ def sample(A_Test, B_Test):
     A2A_mask_Test = G_A2B(A2A_Fake, training=False)[1]
 
     return A2B_Test[0:1, :, :, :], B2A_Test[0:1, :, :, :], A2B_mask_Test[0:1, :, :, :], A2B2A_Test[0:1, :, :, :], \
-           B2A2B_Test[0:1, :, :, :], B2A2B_mask_Test[0:1, :, :, :], m_Test[0:1, :, :, :], n_Test[0:1, :, :, :], \
-           A2A_Fake[0:1, :, :, :], A2A_mask_Test[0:1, :, :, :]
+    B2A2B_Test[0:1, :, :, :], B2A2B_mask_Test[0:1, :, :, :], m_Test[0:1, :, :, :], n_Test[0:1, :, :, :], \
+    A2A_Fake[0:1, :, :, :], A2A_mask_Test[0:1, :, :, :]
 
 
 # ==============================================================================
@@ -372,7 +378,7 @@ if experiment_button:
 # =                     Weak Supervision Val                                   =
 # ==============================================================================
 def Validation(model, dataset):
-    model = keras.models.Model(inputs=model.inputs, outputs=[1 - model.outputs[0][:, :, :, 0:1]])
+    model = keras.models.Model(inputs=model.inputs, outputs=[model.outputs[1][:, :, :, 0:1]])
     initial_learning_rate = 5e-5
     optimizer = keras.optimizers.RMSprop(initial_learning_rate)
     model.compile(optimizer=optimizer,
@@ -385,6 +391,7 @@ def Validation(model, dataset):
 # =                     summary and train                                      =
 # ==============================================================================
 def train(Step=0):
+    global seed
     # sample
     test_iter = iter(A_B_dataset_test)
     sample_dir = py.join(output_dir, 'samples_training')
@@ -401,6 +408,9 @@ def train(Step=0):
 
             # train for an epoch
             for A, B in tqdm.tqdm(A_B_dataset, desc='Inner Epoch Loop', total=len_dataset):
+
+                seed = seed + 1
+
                 G_loss_dict, D_loss_dict = train_step(A, B)
 
                 # # summary

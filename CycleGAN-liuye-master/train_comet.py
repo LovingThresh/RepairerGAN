@@ -73,17 +73,22 @@ b[10] = '-'
 b[13] = '-'
 b[16] = '-'
 output_dir = ''.join(b)
+repeat_num = 12
+
 if hyper_params['device'] == 'A40':
     output_dir = r'/root/autodl-tmp/Cycle_GAN/{}'.format(output_dir)
     hyper_params['batch_size'] = 4
+    repeat_num = 12
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
         hyper_params['batch_size'] = 1
+        repeat_num = 1
     else:
         hyper_params['batch_size'] = 2
+        repeat_num = 4
 py.mkdir(output_dir)
-
+hyper_params['repeat_num'] = repeat_num
 hyper_params['output_dir'] = output_dir
 hyper_params['ex_date'] = a[:10]
 
@@ -102,7 +107,7 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # ==============================================================================
 # =                                    data                                    =
 # ==============================================================================
-repeat_num = 12
+
 # Dataset制作
 A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'train_Positive'), '*.jpg')
 B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'train_Negative'), '*.jpg')

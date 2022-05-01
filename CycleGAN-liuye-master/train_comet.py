@@ -40,7 +40,7 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'AttentionGAN_A2A_Weak_D_Bridge',
+    'ex_number': 'A2A_Weak_D_Bridge_3080Ti',
     'device': 'A40',
     'data_type': 'bridge_crack',
     'datasets_dir': r'datasets',
@@ -102,7 +102,7 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 # ==============================================================================
 # =                                    data                                    =
 # ==============================================================================
-
+repeat_num = 12
 # Dataset制作
 A_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'train_Positive'), '*.jpg')
 B_img_paths = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['data_type'], 'train_Negative'), '*.jpg')
@@ -112,7 +112,7 @@ A_B_dataset, len_dataset = data.make_zip_dataset(A_img_paths, B_img_paths,
                                                  hyper_params['crop_size'],
                                                  training=True,
                                                  shuffle=False,
-                                                 repeat=1,
+                                                 repeat=repeat_num,
                                                  )
 
 # Segmentation数据制作
@@ -138,7 +138,8 @@ B_img_paths_test = py.glob(py.join(hyper_params['datasets_dir'], hyper_params['d
 A_B_dataset_test, _ = data.make_zip_dataset(
     A_img_paths_test, B_img_paths_test, hyper_params['batch_size'], hyper_params['load_size'],
     hyper_params['crop_size'],
-    training=False, shuffle=False)
+    training=False, shuffle=False,
+    repeat=repeat_num)
 
 # ==============================================================================
 # =                                   models                                   =
@@ -345,6 +346,7 @@ except Exception as e:
 # ==============================================================================
 module_dir = py.join(output_dir, 'module_code')
 py.mkdir(module_dir)
+os.mkdir(os.path.join(output_dir, 'save_model'))
 
 # 本地复制源代码，便于复现(模型文件、数据文件、训练文件、测试文件)
 # 冷代码
@@ -437,7 +439,7 @@ def train(Step=0):
                         tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
                                    name='m_F1')
                         if m_iou > 0.6:
-                            os.mkdir(os.path.join(output_dir, 'save_model'))
+
                             model.save(os.path.join(output_dir, 'save_model',
                                                     '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
                         img = im.immerge(np.concatenate(

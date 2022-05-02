@@ -44,7 +44,7 @@ if experiment_button:
 # ----------------------------------------------------------------------
 
 hyper_params = {
-    'ex_number': 'Supervised_crack_3090',
+    'ex_number': 'Supervised_crack_3090_UNet',
     'Model': 'UNet',
     'Base_Model': 'VGG19',
     'loss': 'Binary_Crossentropy',
@@ -145,6 +145,7 @@ if experiment_button:
     experiment.log_parameters(hyper_params)
     experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
     experiment.add_tag('Supervised')
+    experiment.add_tag(hyper_params['Model'])
 
 # ----------------------------------------------------------------------
 #                               output

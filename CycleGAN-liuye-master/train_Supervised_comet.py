@@ -42,10 +42,10 @@ if experiment_button:
 # ----------------------------------------------------------------------
 
 hyper_params = {
-    'ex_number': 'Supervised_crack_3080Ti',
-    'Model': '',
-    'Base_Model': '',
-    'loss': '',
+    'ex_number': 'Supervised_crack_3090',
+    'Model': 'U-Net',
+    'Base_Model': 'ResNet50',
+    'loss': 'Binary_Crossentropy',
     'repeat_num': 1,
     'device': '3080Ti',
     'data_type': 'crack',
@@ -53,10 +53,8 @@ hyper_params = {
     'load_size': 224,
     'crop_size': 224,
     'batch_size': 3,
-    'epochs': 5,
-    'learning_rate': 1e-3,
-    # 优化器要自己调一下
-    'optimizer': '',
+    'epochs': 50,
+    'learning_rate': 1e-4,
 }
 
 # output_dir
@@ -79,7 +77,7 @@ elif hyper_params['device'] == '3080Ti' or '3090':
         repeat_num = 1
     else:
         hyper_params['batch_size'] = 2
-        repeat_num = 4
+        repeat_num = 1
 py.mkdir(output_dir)
 hyper_params['repeat_num'] = repeat_num
 hyper_params['output_dir'] = output_dir
@@ -135,7 +133,7 @@ A_test_dataset, len_test_dataset = data.make_zip_dataset(A_img_test_paths, A_mas
 #                               model
 # ----------------------------------------------------------------------
 
-model, base_model = builder(2, input_size=(448, 448), model=hyper_params['Model'],
+model, base_model = builder(1, input_size=(448, 448), model=hyper_params['Model'],
                             base_model=hyper_params['Base_Model'])
 model.summary()
 profile = model_profiler.model_profiler(model, hyper_params['batch_size'])

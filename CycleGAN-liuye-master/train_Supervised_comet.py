@@ -10,6 +10,8 @@ import json
 import shutil
 import datetime
 
+import keras.losses
+import keras.optimizers
 import model_profiler
 from comet_ml import Experiment
 
@@ -23,7 +25,7 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-experiment_button = False
+experiment_button = True
 training = True
 experiment = object
 
@@ -43,17 +45,17 @@ if experiment_button:
 
 hyper_params = {
     'ex_number': 'Supervised_crack_3090',
-    'Model': 'U-Net',
-    'Base_Model': 'ResNet50',
+    'Model': 'UNet',
+    'Base_Model': 'VGG19',
     'loss': 'Binary_Crossentropy',
     'repeat_num': 1,
-    'device': '3080Ti',
+    'device': '3090',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 224,
     'crop_size': 224,
-    'batch_size': 3,
-    'epochs': 50,
+    'batch_size': 64,
+    'epochs': 100,
     'learning_rate': 1e-4,
 }
 
@@ -68,17 +70,17 @@ repeat_num = 12
 
 if hyper_params['device'] == 'A40':
     output_dir = r'/root/autodl-tmp/Cycle_GAN/{}'.format(output_dir)
-    hyper_params['batch_size'] = 4
-    repeat_num = 12
+    hyper_params['batch_size'] = 128
+    repeat_num = 1
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
-        hyper_params['batch_size'] = 1
+        hyper_params['batch_size'] = 32
         repeat_num = 1
     else:
-        hyper_params['batch_size'] = 2
+        hyper_params['batch_size'] = 64
         repeat_num = 1
-py.mkdir(output_dir)
+
 hyper_params['repeat_num'] = repeat_num
 hyper_params['output_dir'] = output_dir
 hyper_params['ex_date'] = a[:10]
@@ -133,16 +135,21 @@ A_test_dataset, len_test_dataset = data.make_zip_dataset(A_img_test_paths, A_mas
 #                               model
 # ----------------------------------------------------------------------
 
-model, base_model = builder(1, input_size=(448, 448), model=hyper_params['Model'],
+model, base_model = builder(1, input_size=(hyper_params['crop_size'], hyper_params['crop_size']), model=hyper_params['Model'],
                             base_model=hyper_params['Base_Model'])
 model.summary()
 profile = model_profiler.model_profiler(model, hyper_params['batch_size'])
 print(profile)
+if experiment_button:
+    hyper_params['ex_key'] = experiment.get_key()
+    experiment.log_parameters(hyper_params)
+    experiment.set_name('{}-{}'.format(hyper_params['ex_date'], hyper_params['ex_number']))
+    experiment.add_tag('Supervised')
 
 # ----------------------------------------------------------------------
 #                               output
 # ----------------------------------------------------------------------
-
+py.mkdir(output_dir)
 module_dir = py.join(output_dir, 'module_code')
 py.mkdir(module_dir)
 os.mkdir(os.path.join(output_dir, 'save_model'))
@@ -200,7 +207,7 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 
 model.compile(optimizer=keras.optimizers.Adam(hyper_params['learning_rate']),
               loss=keras.losses.BinaryCrossentropy(),
-              metrics=['accuracy', 'loss', M_Precision, M_Recall, M_F1, M_IOU])
+              metrics=['accuracy', 'mse', M_Precision, M_Recall, M_F1, M_IOU])
 
 model.fit(A_train_dataset,
           epochs=hyper_params['epochs'],
@@ -223,4 +230,3 @@ def Val_Test(model_path, val_dataset: list):
                                         )
     for dataset in val_dataset:
         val_model.evaluate(dataset)
-

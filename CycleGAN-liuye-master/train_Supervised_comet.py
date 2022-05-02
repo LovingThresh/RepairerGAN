@@ -4,6 +4,7 @@
 # @Email   : csu1704liuye@163.com | sy2113205@buaa.edu.cn
 # @File    : train_Supervised_comet.py
 # @Software: PyCharm
+from comet_ml import Experiment
 
 import os
 import json
@@ -13,7 +14,6 @@ import datetime
 import keras.losses
 import keras.optimizers
 import model_profiler
-from comet_ml import Experiment
 
 import pylib as py
 from Metrics import *
@@ -45,18 +45,18 @@ if experiment_button:
 # ----------------------------------------------------------------------
 
 hyper_params = {
-    'ex_number': 'Supervised_crack_3090_UNet',
+    'ex_number': 'Supervised_crack_3080Ti_UNet',
     'Model': 'UNet',
     'Base_Model': 'VGG19',
     'loss': 'Binary_Crossentropy',
     'repeat_num': 1,
-    'device': '3090',
+    'device': '3080Ti',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 224,
     'crop_size': 224,
-    'batch_size': 64,
-    'epochs': 100,
+    'batch_size': 32,
+    'epochs': 1,
     'learning_rate': 1e-4,
 }
 
@@ -214,13 +214,13 @@ model.compile(optimizer=keras.optimizers.Adam(hyper_params['learning_rate']),
 
 
 def train():
-    history = model.fit(A_train_dataset,
-                        epochs=hyper_params['epochs'],
-                        validation_data=A_val_dataset,
-                        initial_epoch=0,
-                        verbose=1,
-                        callbacks=[tensorboard, checkpoint, EarlyStopping, checkpointplot,
-                                   DynamicLearningRate])
+    model.fit(A_train_dataset,
+              epochs=hyper_params['epochs'],
+              validation_data=A_val_dataset,
+              initial_epoch=0,
+              verbose=1,
+              callbacks=[tensorboard, checkpoint, EarlyStopping, checkpointplot,
+                         DynamicLearningRate])
 
 
 if experiment_button:

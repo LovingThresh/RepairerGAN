@@ -71,7 +71,7 @@ class CheckpointPlot(keras.callbacks.Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         for i in range(self.num_img):
-            raw_tuples = self.generator.__next__()
+            raw_tuples = self.generator.as_numpy_iterator().__next__()
             raw_image = raw_tuples[0]
             raw_label = raw_tuples[1]
             predict_array = self.model.predict(raw_image)

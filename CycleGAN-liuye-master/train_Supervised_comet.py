@@ -35,8 +35,9 @@ if experiment:
 if experiment_button:
     experiment = Experiment(
         api_key="sDV9A5CkoqWZuJDeI9JbJMRvp",
-        project_name="CycleGAN_for_Crack",
+        project_name="crack_supervised",
         workspace="lovingthresh",
+        auto_param_logging=True,
     )
 
 # ----------------------------------------------------------------------
@@ -135,7 +136,8 @@ A_test_dataset, len_test_dataset = data.make_zip_dataset(A_img_test_paths, A_mas
 #                               model
 # ----------------------------------------------------------------------
 
-model, base_model = builder(1, input_size=(hyper_params['crop_size'], hyper_params['crop_size']), model=hyper_params['Model'],
+model, base_model = builder(1, input_size=(hyper_params['crop_size'], hyper_params['crop_size']),
+                            model=hyper_params['Model'],
                             base_model=hyper_params['Base_Model'])
 model.summary()
 profile = model_profiler.model_profiler(model, hyper_params['batch_size'])
@@ -207,15 +209,26 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 
 
 model.compile(optimizer=keras.optimizers.Adam(hyper_params['learning_rate']),
-              loss=keras.losses.BinaryCrossentropy(),
+              loss=keras.losses.MeanAbsoluteError(),
               metrics=['accuracy', 'mse', M_Precision, M_Recall, M_F1, M_IOU])
 
-model.fit(A_train_dataset,
-          epochs=hyper_params['epochs'],
-          validation_data=A_val_dataset,
-          initial_epoch=0,
-          callbacks=[tensorboard, checkpoint, EarlyStopping, checkpointplot,
-                     DynamicLearningRate])
+
+def train():
+    history = model.fit(A_train_dataset,
+                        epochs=hyper_params['epochs'],
+                        validation_data=A_val_dataset,
+                        initial_epoch=0,
+                        verbose=1,
+                        callbacks=[tensorboard, checkpoint, EarlyStopping, checkpointplot,
+                                   DynamicLearningRate])
+
+
+if experiment_button:
+    with experiment.train():
+        train()
+    experiment.end()
+else:
+    train()
 
 
 # ----------------------------------------------------------------------

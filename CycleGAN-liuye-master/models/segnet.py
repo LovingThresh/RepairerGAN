@@ -102,6 +102,6 @@ class SegNet(Network):
         instance_nor = tfa.layers.InstanceNormalization()
         x = instance_nor(x)
         # 增加Softmax层
-        x = layers.Softmax()(x)
+        # x = layers.Softmax()(x)
         outputs = x
         return models.Model(inputs, outputs, name=self.version)

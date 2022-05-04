@@ -16,7 +16,7 @@ def make_dataset(img_paths, batch_size, load_size, crop_size, training, drop_rem
                 if random_fn:
                     img = tf.image.random_flip_left_right(img)
                     # img = tf.image.random_brightness(img, max_delta=0.2)
-                    # img = tf.image.random_flip_up_down(img)
+                    img = tf.image.random_flip_up_down(img)
                     # img = tf.image.random_hue(img, max_delta=0.2)
                     # img = tf.image.random_contrast(img, 0.2, 0.5)
                     # img = tf.image.random_saturation(img, 5, 10)

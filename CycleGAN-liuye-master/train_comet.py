@@ -40,12 +40,12 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'A2A_Weak_D_crack_3080Ti',
-    'device': '3080Ti',
-    'data_type': 'crack',
+    'ex_number': 'A2A_Weak_D_Up_G_MCFF_3090',
+    'device': '3090',
+    'data_type': 'MCFF_crack',
     'datasets_dir': r'datasets',
-    'load_size': 224,
-    'crop_size': 224,
+    'load_size': 448,
+    'crop_size': 448,
     'batch_size': 3,
     'epochs': 5,
     'epoch_decay': 2,

@@ -443,7 +443,7 @@ def train(Step=0):
                                    name='m_Re')
                         tl.summary({'Metrics/m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
                                    name='m_F1')
-                        if m_iou > 0.6:
+                        if m_iou > 0.4:
 
                             model.save(os.path.join(output_dir, 'save_model',
                                                     '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))

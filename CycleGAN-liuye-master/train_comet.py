@@ -40,15 +40,15 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'A2A_Weak_D_Up_G_MCFF_3090',
-    'device': '3090',
+    'ex_number': 'A2A_Up_G_MCFF_A40',
+    'device': 'A40',
     'data_type': 'MCFF_crack',
     'datasets_dir': r'datasets',
     'load_size': 448,
     'crop_size': 448,
-    'batch_size': 3,
-    'epochs': 5,
-    'epoch_decay': 2,
+    'batch_size': 2,
+    'epochs': 8,
+    'epoch_decay': 4,
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
     'learning_rate_D_B_weight': 1.0,
@@ -60,6 +60,7 @@ hyper_params = {
     'cycle_loss_weight': 10.0,
     'identity_loss_weight': 10.0,
     'ssim_loss_weight': 1.0,
+    'ssim_Fake_True_weight': 5.0,
     'std_loss_weight': 50.0,
     'pool_size': 50,
     'lambda_reg': 1e-6,
@@ -77,8 +78,8 @@ repeat_num = 12
 
 if hyper_params['device'] == 'A40':
     output_dir = r'/root/autodl-tmp/Cycle_GAN/{}'.format(output_dir)
-    hyper_params['batch_size'] = 4
-    repeat_num = 12
+    hyper_params['batch_size'] = 2
+    repeat_num = 4
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
@@ -156,9 +157,9 @@ G_B2A = module.AttentionCycleGAN_v1_Generator(input_shape=(hyper_params['crop_si
                                               attention=False)
 
 D_A = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32,
-                               n_downsamplings=3)
+                               n_downsamplings=4)
 D_B = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32,
-                               n_downsamplings=3)
+                               n_downsamplings=4)
 
 
 # ==============================================================================
@@ -243,12 +244,14 @@ def train_G(A_True, B_True):
         s_loss_1 = ssim_loss(A2B_m, A2B_n)
         s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
         s_loss_3 = ssim_loss(B2B_m, B2B_n)
+        s_loss_4 = ssim_loss(A2B_Fake, B_True)
 
         G_loss = \
         hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
         hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
         hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
-        hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3)
+        hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3) + \
+        hyper_params['ssim_Fake_True_weight'] * s_loss_4
         # hyper_params['std_loss_weight'] * std_loss_1
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
@@ -261,6 +264,7 @@ def train_G(A_True, B_True):
                                 'A2A_id_loss': A2A_id_loss,
                                 'B2B_id_loss': B2B_id_loss,
                                 's_loss': s_loss_1 + s_loss_2 + s_loss_3,
+                                'ssim_Fake_True_weight': s_loss_4
                                 # 'std_loss': std_loss_1
                                 }
     # 'loss_reg_A': loss_reg_A,

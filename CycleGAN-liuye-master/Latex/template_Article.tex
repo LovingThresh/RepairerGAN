@@ -1,0 +1,55 @@
+\documentclass[12pt]{article}
+\linespread{1.2}
+\usepackage{xeCJK}
+\usepackage{enumerate}
+\usepackage{float}
+\usepackage{graphicx}
+\usepackage{soul}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{hyperref} 
+\usepackage{geometry}
+\usepackage{easyReview}
+\usepackage{todonotes}
+\usepackage{indentfirst}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins}
+\usepackage{setspace}
+\usepackage{fontawesome5}
+
+\geometry{a4paper,centering,scale=0.8}
+
+\newcommand{\todoredefined}[2][]
+{\todo[color=green!40, #1]{#2}}
+
+\newcommand{\todetime}[2][]{
+\todo[noline, size=\footnotesize, color=white, bordercolor=white, #1]
+{\begin{center}
+	\begin{spacing}{1.0}
+		\date{#2}
+	\end{spacing}	
+\end{center}}
+}
+
+\title{基于弱监督的裂缝分割研究}
+\author{刘烨}
+
+
+\begin{document}
+\renewcommand{\baselinestretch}{2}
+\setcounter{tocdepth}{2}
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\input{Overall.tex}
+\input{Road.tex}
+\input{Paper.tex}
+\input{Reocords.tex}
+
+\end{document}
+
+
+

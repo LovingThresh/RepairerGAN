@@ -1,0 +1,47 @@
+\contentsline {section}{\numberline {1}实验总体方案}{3}{section.1}%
+\contentsline {paragraph}{问题}{3}{section*.2}%
+\contentsline {paragraph}{目标}{3}{section*.3}%
+\contentsline {paragraph}{基本假设}{3}{section*.4}%
+\contentsline {paragraph}{试验方案}{3}{section*.5}%
+\contentsline {paragraph}{目前方案与思考}{3}{section*.9}%
+\contentsline {section}{\numberline {2}Road of Experiment}{4}{section.2}%
+\contentsline {section}{\numberline {3}Road of Paper Review}{6}{section.3}%
+\contentsline {section}{\numberline {4}试验记录}{7}{section.4}%
+\contentsline {subsection}{\numberline {4.1}template}{7}{subsection.4.1}%
+\contentsline {subsubsection}{\numberline {4.1.1}实验目的}{7}{subsubsection.4.1.1}%
+\contentsline {subsubsection}{\numberline {4.1.2}实验信息}{7}{subsubsection.4.1.2}%
+\contentsline {subsubsection}{\numberline {4.1.3}实验结果}{7}{subsubsection.4.1.3}%
+\contentsline {subsubsection}{\numberline {4.1.4}实验分析}{7}{subsubsection.4.1.4}%
+\contentsline {subsubsection}{\numberline {4.1.5}实验计划}{7}{subsubsection.4.1.5}%
+\contentsline {subsection}{\numberline {4.2}2022-03-14}{8}{subsection.4.2}%
+\contentsline {subsubsection}{\numberline {4.2.1}实验目的}{8}{subsubsection.4.2.1}%
+\contentsline {subsubsection}{\numberline {4.2.2}实验信息}{8}{subsubsection.4.2.2}%
+\contentsline {subsubsection}{\numberline {4.2.3}实验结果}{8}{subsubsection.4.2.3}%
+\contentsline {subsubsection}{\numberline {4.2.4}实验分析}{9}{subsubsection.4.2.4}%
+\contentsline {subsubsection}{\numberline {4.2.5}实验计划}{9}{subsubsection.4.2.5}%
+\contentsline {subsubsection}{\numberline {4.2.6}关键实验小结}{10}{subsubsection.4.2.6}%
+\contentsline {subsection}{\numberline {4.3}2022-03-19}{11}{subsection.4.3}%
+\contentsline {subsubsection}{\numberline {4.3.1}实验目的}{11}{subsubsection.4.3.1}%
+\contentsline {subsubsection}{\numberline {4.3.2}实验信息}{11}{subsubsection.4.3.2}%
+\contentsline {subsubsection}{\numberline {4.3.3}实验结果}{12}{subsubsection.4.3.3}%
+\contentsline {subsubsection}{\numberline {4.3.4}实验分析}{13}{subsubsection.4.3.4}%
+\contentsline {subsubsection}{\numberline {4.3.5}实验计划}{13}{subsubsection.4.3.5}%
+\contentsline {subsection}{\numberline {4.4}03-19-B}{14}{subsection.4.4}%
+\contentsline {subsubsection}{\numberline {4.4.1}实验目的}{14}{subsubsection.4.4.1}%
+\contentsline {subsubsection}{\numberline {4.4.2}实验信息}{14}{subsubsection.4.4.2}%
+\contentsline {subsubsection}{\numberline {4.4.3}实验结果}{14}{subsubsection.4.4.3}%
+\contentsline {subsubsection}{\numberline {4.4.4}实验分析}{15}{subsubsection.4.4.4}%
+\contentsline {subsubsection}{\numberline {4.4.5}实验计划}{15}{subsubsection.4.4.5}%
+\contentsline {subsection}{\numberline {4.5}03-20}{16}{subsection.4.5}%
+\contentsline {subsubsection}{\numberline {4.5.1}实验目的}{16}{subsubsection.4.5.1}%
+\contentsline {subsubsection}{\numberline {4.5.2}实验信息}{16}{subsubsection.4.5.2}%
+\contentsline {subsubsection}{\numberline {4.5.3}实验结果}{16}{subsubsection.4.5.3}%
+\contentsline {subsubsection}{\numberline {4.5.4}实验分析}{17}{subsubsection.4.5.4}%
+\contentsline {subsubsection}{\numberline {4.5.5}实验计划}{17}{subsubsection.4.5.5}%
+\contentsline {paragraph}{\textbf {模型修改：}}{17}{section*.10}%
+\contentsline {subsection}{\numberline {4.6}05-12}{19}{subsection.4.6}%
+\contentsline {subsubsection}{\numberline {4.6.1}实验目的}{19}{subsubsection.4.6.1}%
+\contentsline {subsubsection}{\numberline {4.6.2}实验信息}{19}{subsubsection.4.6.2}%
+\contentsline {subsubsection}{\numberline {4.6.3}实验结果}{19}{subsubsection.4.6.3}%
+\contentsline {subsubsection}{\numberline {4.6.4}实验分析}{20}{subsubsection.4.6.4}%
+\contentsline {subsubsection}{\numberline {4.6.5}实验计划}{20}{subsubsection.4.6.5}%

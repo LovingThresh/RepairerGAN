@@ -6,8 +6,9 @@
 # @Software: PyCharm
 
 import json
-import os.path
 import shutil
+import random
+import os.path
 import datetime
 import functools
 from comet_ml import Experiment
@@ -25,12 +26,28 @@ import Metrics
 import tf2lib as tl
 import tf2gan as gan
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(gpus[0], True)
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
 experiment_button = True
 training = True
 experiment = object
 
 if experiment:
     pass
+
+
+def setup_seed(seed):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)  # 为python设置随机种子
+    np.random.seed(seed)  # 为numpy设置随机种子
+    tf.random.set_seed(seed)  # tf cpu fix seed
+    # os.environ['TF_DETERMINISTIC_OPS'] = '1'  # tf gpu fix seed, please `pip install tensorflow-determinism` first
+
+
+setup_seed(42)
+
 
 if experiment_button:
     experiment = Experiment(
@@ -40,13 +57,13 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'A2A_Up_G_MCFF_A40',
-    'device': 'A40',
+    'ex_number': 'A2A_ssim_4_Bridge_3080Ti',
+    'device': '3080Ti',
     'data_type': 'MCFF_crack',
     'datasets_dir': r'datasets',
-    'load_size': 448,
-    'crop_size': 448,
-    'batch_size': 2,
+    'load_size': 512,
+    'crop_size': 512,
+    'batch_size': 1,
     'epochs': 8,
     'epoch_decay': 4,
     'learning_rate_G': 0.0002,

@@ -1,0 +1,34 @@
+\section{Overall Experiment}
+
+\paragraph{问题}
+如果神经网络能区分损伤与非损伤，那么如何将这部分知识显式地表现出来？
+
+\paragraph{目标}
+利用Image-Level information实现分割任务，或者利用Target information 实现分割任务。
+
+\paragraph{基本假设}
+
+\begin{enumerate}[1.]
+	\item 神经网络无法分辨同类的无损伤图像与有损伤图像。
+	\item 神经网络中的信息可以可视化为分割标签。
+	\item 可以通过神经网络中的损失函数限制指导网络加强对损伤区域的识别。
+\end{enumerate}
+
+\paragraph{试验方案}
+
+\begin{enumerate}[1.]
+	\item \todetime{May 11--2022}使用CycleGAN进行损伤与非损伤图像的Cycle image-image任务，从中获取特征信息。\todoredefined[inline]{目前正在试验}
+	\item 使用c-GAN进行损伤图像向非损伤图像的转换任务，在单向生成任务中获取特征信息。
+	\item 使用Gram运行二分类模型，在二分类任务中获取特征信息。\todo[inline]{下一步试验}
+	\item 使用带Attention的二分类模型，在分类的Attention中获取特征信息。
+
+\end{enumerate}
+
+\paragraph{目前方案与思考}
+\begin{enumerate}[1]
+	\item 考虑如何将先验知识融入到CycleGAN中——结构相似性先验——实验相对来说非常成功，但是仍然会出现崩溃的现象！——\mbox{\today}
+
+
+\end{enumerate}
+
+\newpage

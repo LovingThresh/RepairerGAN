@@ -25,7 +25,7 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-experiment_button = True
+experiment_button = False
 training = True
 experiment = object
 
@@ -45,12 +45,12 @@ if experiment_button:
 # ----------------------------------------------------------------------
 
 hyper_params = {
-    'ex_number': 'Supervised_crack_3080Ti_UNet',
-    'Model': 'UNet',
-    'Base_Model': 'VGG19',
+    'ex_number': 'Supervised_crack_3090',
+    'Model': 'RefineNet',
+    'Base_Model': 'ResNet50',
     'loss': 'Binary_Crossentropy',
     'repeat_num': 1,
-    'device': '3080Ti',
+    'device': '3090',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 224,
@@ -74,12 +74,12 @@ if hyper_params['device'] == 'A40':
     hyper_params['batch_size'] = 128
     repeat_num = 1
 elif hyper_params['device'] == '3080Ti' or '3090':
-    output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
+    output_dir = r'/root/autodl-tmp/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
         hyper_params['batch_size'] = 32
         repeat_num = 1
     else:
-        hyper_params['batch_size'] = 64
+        hyper_params['batch_size'] = 32
         repeat_num = 1
 
 hyper_params['repeat_num'] = repeat_num

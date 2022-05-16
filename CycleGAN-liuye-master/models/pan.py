@@ -58,8 +58,8 @@ class PAN(Network):
 
     def _conv_bn_relu(self, x, filters, kernel_size, strides=1):
         x = layers.Conv2D(filters, kernel_size, strides, padding='same', kernel_initializer='he_normal')(x)
-        x = tfa.layers.InstanceNormalization()(x)
-        # x = layers.BatchNormalization()(x)
+        # x = tfa.layers.InstanceNormalization()(x)
+        x = layers.BatchNormalization()(x)
         x = layers.ReLU()(x)
         return x
 
@@ -67,7 +67,7 @@ class PAN(Network):
         _, h, w, _ = backend.int_shape(x)
 
         # global average pooling
-        glb = custom_layers.A_GlobalAveragePooling2D(keep_dims=True)(x)
+        glb = custom_layers.GlobalAveragePooling2D(keep_dims=True)(x)
         glb = layers.Conv2D(out_filters, 1, strides=1, kernel_initializer='he_normal')(glb)
 
         # down
@@ -94,8 +94,8 @@ class PAN(Network):
         up = layers.UpSampling2D(size=(2, 2))(up1)
 
         x = layers.Conv2D(out_filters, 1, strides=1, kernel_initializer='he_normal')(x)
-        x = tfa.layers.InstanceNormalization()(x)
-        # x = layers.BatchNormalization()(x)
+        # x = tfa.layers.InstanceNormalization()(x)
+        x = layers.BatchNormalization()(x)
 
         # multiply
         x = layers.Multiply()([x, up])

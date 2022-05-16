@@ -12,26 +12,26 @@ layers = tf.keras.layers
 backend = tf.keras.backend
 
 
-class A_GlobalAveragePooling2D(layers.GlobalAveragePooling2D):
+class GlobalAveragePooling2D(layers.GlobalAveragePooling2D):
     def __init__(self, keep_dims=False, **kwargs):
-        super(A_GlobalAveragePooling2D, self).__init__(**kwargs)
+        super(GlobalAveragePooling2D, self).__init__(**kwargs)
         self.keep_dims = keep_dims
 
     def call(self, inputs):
         if self.keep_dims is False:
-            return super(A_GlobalAveragePooling2D, self).call(inputs)
+            return super(GlobalAveragePooling2D, self).call(inputs)
         else:
             return backend.mean(inputs, axis=[1, 2], keepdims=True)
 
     def compute_output_shape(self, input_shape):
         if self.keep_dims is False:
-            return super(A_GlobalAveragePooling2D, self).compute_output_shape(input_shape)
+            return super(GlobalAveragePooling2D, self).compute_output_shape(input_shape)
         else:
             input_shape = tf.TensorShape(input_shape).as_list()
             return tf.TensorShape([input_shape[0], 1, 1, input_shape[3]])
 
     def get_config(self):
-        config = super(A_GlobalAveragePooling2D, self).get_config()
+        config = super(GlobalAveragePooling2D, self).get_config()
         config['keep_dim'] = self.keep_dims
         return config
 

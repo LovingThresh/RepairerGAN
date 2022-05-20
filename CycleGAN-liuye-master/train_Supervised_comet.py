@@ -9,6 +9,7 @@ from comet_ml import Experiment
 import os
 import json
 import shutil
+import random
 import datetime
 
 import keras.losses
@@ -40,23 +41,33 @@ if experiment_button:
         auto_param_logging=True,
     )
 
+
+def setup_seed(seed):
+    os.environ['PYTHONHASHSEED'] = str(seed)
+    random.seed(seed)  # 为python设置随机种子
+    np.random.seed(seed)  # 为numpy设置随机种子
+    tf.random.set_seed(seed)  # tf cpu fix seed
+    # os.environ['TF_DETERMINISTIC_OPS'] = '1'  # tf gpu fix seed, please `pip install tensorflow-determinism` first
+
+
+setup_seed(42)
 # ----------------------------------------------------------------------
 #                               parameter
 # ----------------------------------------------------------------------
 
 hyper_params = {
-    'ex_number': 'Supervised_crack_3090',
-    'Model': 'RefineNet',
-    'Base_Model': 'ResNet50',
+    'ex_number': 'Supervised_crack_3080Ti',
+    'Model': 'UNet',
+    'Base_Model': 'VGG16',
     'loss': 'Binary_Crossentropy',
     'repeat_num': 1,
-    'device': '3090',
+    'device': '3080Ti',
     'data_type': 'crack',
     'datasets_dir': r'datasets',
     'load_size': 224,
     'crop_size': 224,
     'batch_size': 32,
-    'epochs': 1,
+    'epochs': 100,
     'learning_rate': 1e-4,
 }
 
@@ -74,7 +85,7 @@ if hyper_params['device'] == 'A40':
     hyper_params['batch_size'] = 128
     repeat_num = 1
 elif hyper_params['device'] == '3080Ti' or '3090':
-    output_dir = r'/root/autodl-tmp/Cycle_GAN/output/{}'.format(output_dir)
+    output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
         hyper_params['batch_size'] = 32
         repeat_num = 1
@@ -209,7 +220,7 @@ with open('{}/hyper_params.json'.format(output_dir), 'w') as fp:
 
 
 model.compile(optimizer=keras.optimizers.Adam(hyper_params['learning_rate']),
-              loss=keras.losses.MeanAbsoluteError(),
+              loss=keras.losses.BinaryCrossentropy(),
               metrics=['accuracy', 'mse', M_Precision, M_Recall, M_F1, M_IOU])
 
 

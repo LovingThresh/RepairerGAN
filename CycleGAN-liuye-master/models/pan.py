@@ -9,7 +9,7 @@ The implementation of PAN (Pyramid Attention Networks) based on Tensorflow.
 from utils import layers as custom_layers
 from models import Network
 import tensorflow as tf
-import tensorflow_addons as tfa
+
 layers = tf.keras.layers
 models = tf.keras.models
 backend = tf.keras.backend
@@ -58,7 +58,6 @@ class PAN(Network):
 
     def _conv_bn_relu(self, x, filters, kernel_size, strides=1):
         x = layers.Conv2D(filters, kernel_size, strides, padding='same', kernel_initializer='he_normal')(x)
-        # x = tfa.layers.InstanceNormalization()(x)
         x = layers.BatchNormalization()(x)
         x = layers.ReLU()(x)
         return x
@@ -94,7 +93,6 @@ class PAN(Network):
         up = layers.UpSampling2D(size=(2, 2))(up1)
 
         x = layers.Conv2D(out_filters, 1, strides=1, kernel_initializer='he_normal')(x)
-        # x = tfa.layers.InstanceNormalization()(x)
         x = layers.BatchNormalization()(x)
 
         # multiply
@@ -106,7 +104,7 @@ class PAN(Network):
         return x
 
     def _gau(self, x, y, out_filters, up_size=(2, 2)):
-        glb = custom_layers.A_GlobalAveragePooling2D(keep_dims=True)(y)
+        glb = custom_layers.GlobalAveragePooling2D(keep_dims=True)(y)
         glb = layers.Conv2D(out_filters, 1, strides=1, activation='sigmoid', kernel_initializer='he_normal')(glb)
 
         x = self._conv_bn_relu(x, out_filters, 3, 1)
@@ -131,7 +129,7 @@ class PAN(Network):
         y = self._gau(c2, y, num_classes, up_size[2])
 
         y = layers.UpSampling2D(size=up_size[3], interpolation='bilinear')(y)
-        y = layers.Softmax()(y)
+
         outputs = y
 
         return models.Model(inputs, outputs, name=self.version)

@@ -9,7 +9,6 @@ The implementation of DeepLabV3Plus based on Tensorflow.
 from utils import layers as custom_layers
 from models import Network
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 layers = tf.keras.layers
 models = tf.keras.models
@@ -79,7 +78,7 @@ class DeepLabV3Plus(Network):
         x = layers.Dropout(rate=0.5)(x)
 
         x = self._conv_bn_relu(x, 256, 3, 1)
-        x = layers.Dropout(rate=0.5)(x)
+        x = layers.Dropout(rate=0.1)(x)
 
         x = layers.Conv2D(num_classes, 1, strides=1)(x)
         x = layers.UpSampling2D(size=(4, 4), interpolation='bilinear')(x)
@@ -101,7 +100,6 @@ class DeepLabV3Plus(Network):
         for i in range(3):
             xi = layers.Conv2D(out_filters, 3, strides=1, padding='same', dilation_rate=6 * (i + 1))(x)
             xs.append(xi)
-
         img_pool = custom_layers.GlobalAveragePooling2D(keep_dims=True)(x)
         img_pool = layers.Conv2D(out_filters, 1, 1, kernel_initializer='he_normal')(img_pool)
         img_pool = layers.UpSampling2D(size=self.aspp_size, interpolation='bilinear')(img_pool)

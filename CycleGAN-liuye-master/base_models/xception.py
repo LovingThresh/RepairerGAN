@@ -8,7 +8,7 @@ Some codes are based on official tensorflow source codes.
 
 """
 import tensorflow as tf
-import tensorflow_addons as tfa
+
 layers = tf.keras.layers
 backend = tf.keras.backend
 

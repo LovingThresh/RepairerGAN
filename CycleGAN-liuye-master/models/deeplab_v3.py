@@ -65,7 +65,6 @@ class DeepLabV3(Network):
         for i in range(2):
             x = self._identity_block(x, 3, [512, 512, 2048],
                                      stage=5,
-                                     # chr(ord('b') + 1) == 'c'
                                      block=chr(ord('b') + i),
                                      dilation=dilation[1] * multi_grid[i])
         x = self._aspp(x, 256)
@@ -97,7 +96,6 @@ class DeepLabV3(Network):
 
         return x
 
-    # _identity)block与_conv_block一致，唯一的区别在于dilation不一样
     def _identity_block(self, input_tensor, kernel_size, filters, stage, block, dilation=1):
         """The identity block is the block that has no conv layer at shortcut.
 

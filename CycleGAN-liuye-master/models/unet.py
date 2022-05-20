@@ -7,7 +7,6 @@ The implementation of UNet based on Tensorflow.
 """
 from models import Network
 import tensorflow as tf
-import tensorflow_addons as tfa
 
 layers = tf.keras.layers
 models = tf.keras.models
@@ -45,8 +44,7 @@ class UNet(Network):
                           strides=strides,
                           padding='same',
                           kernel_initializer='he_normal')(x)
-        x = tfa.layers.InstanceNormalization()(x)
-        # x = layers.BatchNormalization()(x)
+        x = layers.BatchNormalization()(x)
         x = layers.ReLU()(x)
         return x
 
@@ -84,8 +82,7 @@ class UNet(Network):
         x = layers.UpSampling2D(size=(2, 2))(x)
         x = layers.Conv2D(num_classes, 1, strides=1,
                           kernel_initializer='he_normal')(x)
-        x = tfa.layers.InstanceNormalization()(x)
-        # x = layers.BatchNormalization()(x)
+        x = layers.BatchNormalization()(x)
 
         outputs = x
         return models.Model(inputs, outputs, name=self.version)

@@ -19,7 +19,7 @@ import numpy as np
 import tensorflow as tf
 import tensorflow.keras as keras
 
-path = r'I:\Dataset\Birdge_data\Aft_Original_Crack_DataSet_Second'
+path = r'L:\crack segmentation in UAV images\Dataset/'
 file_list = os.listdir(path)
 random.shuffle(file_list)
 
@@ -27,16 +27,26 @@ train_list = file_list[:int(len(file_list) * 0.8)]
 val_list = file_list[int(len(file_list) * 0.8): int(len(file_list) * 0.9)]
 test_list = file_list[int(len(file_list) * 0.9):]
 
-train_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\bridge_crack\train_Positive'
-val_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\bridge_crack\val_Positive'
-test_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\bridge_crack\test_Positive'
+train_path = r'L:\crack segmentation in UAV images\Dataset\train\mask'
+val_path = r'L:\crack segmentation in UAV images\Dataset\val\mask'
+test_path = r'L:\crack segmentation in UAV images\Dataset\test\mask'
 
 for file_path, file_list in zip((train_path, val_path, test_path), (train_list, val_list, test_list)):
     for file in file_list:
+        file = file[:-4] + '.png'
         img_path = os.path.join(path, file)
         img = cv2.imread(img_path)
         img = cv2.resize(img, (512, 512))
         cv2.imwrite(os.path.join(file_path, file), img)
+
+
+file_list = test_list
+with open(os.path.join(path, 'test.txt'), 'w') as f:
+    for file in file_list[:-1]:
+        a = file + ',' + file[:-4] + '.png' + '\n'
+        f.write(a)
+    file = file_list[-1]
+    f.write(file + ',' + file[:-4] + '.png')
 
 # 其实也不一定需要修改文件名
 # 第二步完成

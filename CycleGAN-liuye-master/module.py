@@ -313,7 +313,7 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
         m = (1 - attention) * inputs
         n = (1 - attention) * h
 
-        return keras.Model(inputs=inputs, outputs=[h, attention, m, n])
+        return keras.Model(inputs=inputs, outputs=[h, attention, m, n, content])
 
     h = keras.layers.Conv2D(filters=output_channel, kernel_size=(7, 7), strides=(1, 1), padding='same',
                             use_bias=False)(h)

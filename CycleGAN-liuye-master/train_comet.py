@@ -30,7 +30,7 @@ gpus = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(gpus[0], True)
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 
-experiment_button = True
+experiment_button = False
 training = True
 experiment = object
 
@@ -59,10 +59,10 @@ if experiment_button:
 hyper_params = {
     'ex_number': 'A2A_ssim_4_Bridge_3080Ti',
     'device': '3080Ti',
-    'data_type': 'MCFF_crack',
+    'data_type': 'crack',
     'datasets_dir': r'datasets',
-    'load_size': 512,
-    'crop_size': 512,
+    'load_size': 224,
+    'crop_size': 224,
     'batch_size': 1,
     'epochs': 8,
     'epoch_decay': 4,
@@ -190,6 +190,33 @@ def ssim_loss(y_pred, y_true):
                                                  filter_sigma=1.5, k1=0.01, k2=0.03))
 
 
+def contentFunc():
+    cnn = tf.keras.applications.vgg19.VGG19(include_top=False, input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3))
+    input = cnn.inputs
+    output = cnn.layers[9].output
+    model = tf.keras.models.Model(input, output)
+    model.trainable = False
+    return model
+
+
+class PerceptualLoss:
+
+    def __init__(self, loss):
+        self.criterion = loss
+        self.contentFunc = contentFunc()
+
+    def get_loss(self, fakeIm, realIm):
+        f_fake = self.contentFunc(fakeIm)
+        f_real = self.contentFunc(realIm)
+        loss = self.criterion(f_fake, f_real)
+        return loss
+
+
+def perceptual_loss(y_pred, y_true):
+    P = PerceptualLoss(tf.keras.losses.MeanSquaredError())
+    return 0.2 * P.get_loss(y_pred, y_true)
+
+
 d_loss_fn, g_loss_fn = gan.get_adversarial_losses_fn(hyper_params['adversarial_loss_mode'])
 cycle_loss_fn = tf.losses.MeanAbsoluteError()
 identity_loss_fn = tf.losses.MeanAbsoluteError()
@@ -214,21 +241,24 @@ D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 
-@tf.function
+# @tf.function
 def train_G(A_True, B_True):
     with tf.GradientTape() as t:
         A2B_Fake = G_A2B(A_True, training=True)[0]
         A2B_m = G_A2B(A_True, training=True)[2]
         A2B_n = G_A2B(A_True, training=True)[3]
+        A2B_content = G_A2B(A_True, training=True)[4]
         B2A_Fake = G_B2A(B_True, training=True)
         A2B2A_Fake = G_B2A(A2B_Fake, training=True)
         B2A2B_Fake = G_A2B(B2A_Fake, training=True)[0]
         B2A2B_m = G_A2B(B2A_Fake, training=True)[2]
         B2A2B_n = G_A2B(B2A_Fake, training=True)[3]
+        B2A2B_content = G_A2B(B2A_Fake, training=True)[4]
         A2A = G_B2A(A_True, training=True)
         B2B = G_A2B(B_True, training=True)[0]
         B2B_m = G_A2B(B_True, training=True)[2]
         B2B_n = G_A2B(B_True, training=True)[3]
+        B2B_content = G_A2B(B_True, training=True)[4]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
         # A2B2A, _, _ = G_B2A(A2B, training=True)
@@ -263,12 +293,17 @@ def train_G(A_True, B_True):
         s_loss_3 = ssim_loss(B2B_m, B2B_n)
         s_loss_4 = ssim_loss(A2B_Fake, B_True)
 
+        Perceptual_loss_1 = perceptual_loss(A2B_content, B_True)
+        Perceptual_loss_2 = perceptual_loss(B2A2B_content, B_True)
+        Perceptual_loss_3 = perceptual_loss(B2B_content, B_True)
+
         G_loss = \
         hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
         hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
         hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
         hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3) + \
-        hyper_params['ssim_Fake_True_weight'] * s_loss_4
+        hyper_params['ssim_Fake_True_weight'] * s_loss_4 + \
+        (Perceptual_loss_1 + Perceptual_loss_2 + Perceptual_loss_3)
         # hyper_params['std_loss_weight'] * std_loss_1
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
@@ -281,7 +316,8 @@ def train_G(A_True, B_True):
                                 'A2A_id_loss': A2A_id_loss,
                                 'B2B_id_loss': B2B_id_loss,
                                 's_loss': s_loss_1 + s_loss_2 + s_loss_3,
-                                'ssim_Fake_True_weight': s_loss_4
+                                'ssim_Fake_True_weight': s_loss_4,
+                                'Perceptual_loss': Perceptual_loss_1 + Perceptual_loss_2 + Perceptual_loss_3,
                                 # 'std_loss': std_loss_1
                                 }
     # 'loss_reg_A': loss_reg_A,

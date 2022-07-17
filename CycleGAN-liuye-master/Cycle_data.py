@@ -89,6 +89,7 @@ class ItemPool:
         if self.pool_size == 0:
             return in_items
 
+        # 输出的训练数据一部分来自缓存池内，一部分来自新的数据
         out_items = []
         for in_item in in_items:
             if len(self.items) < self.pool_size:

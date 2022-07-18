@@ -26,11 +26,7 @@ import Metrics
 import tf2lib as tl
 import tf2gan as gan
 
-gpus = tf.config.experimental.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(gpus[0], True)
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-
-experiment_button = False
+experiment_button = True
 training = True
 experiment = object
 
@@ -39,15 +35,12 @@ if experiment:
 
 
 def setup_seed(seed):
-    os.environ['PYTHONHASHSEED'] = str(seed)
-    random.seed(seed)  # 为python设置随机种子
-    np.random.seed(seed)  # 为numpy设置随机种子
-    tf.random.set_seed(seed)  # tf cpu fix seed
-    # os.environ['TF_DETERMINISTIC_OPS'] = '1'  # tf gpu fix seed, please `pip install tensorflow-determinism` first
+    np.random.seed(seed)
+    random.seed(seed)
+    tf.set_random_seed(seed)
 
 
-setup_seed(42)
-
+setup_seed(24)
 
 if experiment_button:
     experiment = Experiment(
@@ -57,15 +50,15 @@ if experiment_button:
     )
 
 hyper_params = {
-    'ex_number': 'A2A_ssim_4_Bridge_3080Ti',
+    'ex_number': 'A2A_Weak_D_crack_3080Ti',
     'device': '3080Ti',
     'data_type': 'crack',
-    'datasets_dir': r'datasets',
+    'datasets_dir': r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets',
     'load_size': 224,
     'crop_size': 224,
-    'batch_size': 1,
-    'epochs': 8,
-    'epoch_decay': 4,
+    'batch_size': 3,
+    'epochs': 1,
+    'epoch_decay': 2,
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
     'learning_rate_D_B_weight': 1.0,
@@ -77,7 +70,6 @@ hyper_params = {
     'cycle_loss_weight': 10.0,
     'identity_loss_weight': 10.0,
     'ssim_loss_weight': 1.0,
-    'ssim_Fake_True_weight': 5.0,
     'std_loss_weight': 50.0,
     'pool_size': 50,
     'lambda_reg': 1e-6,
@@ -95,8 +87,8 @@ repeat_num = 12
 
 if hyper_params['device'] == 'A40':
     output_dir = r'/root/autodl-tmp/Cycle_GAN/{}'.format(output_dir)
-    hyper_params['batch_size'] = 2
-    repeat_num = 4
+    hyper_params['batch_size'] = 4
+    repeat_num = 12
 elif hyper_params['device'] == '3080Ti' or '3090':
     output_dir = r'E:/Cycle_GAN/output/{}'.format(output_dir)
     if hyper_params['device'] == '3080Ti':
@@ -174,9 +166,9 @@ G_B2A = module.AttentionCycleGAN_v1_Generator(input_shape=(hyper_params['crop_si
                                               attention=False)
 
 D_A = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32,
-                               n_downsamplings=4)
+                               n_downsamplings=3)
 D_B = module.ConvDiscriminator(input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3), dim=32,
-                               n_downsamplings=4)
+                               n_downsamplings=3)
 
 
 # ==============================================================================
@@ -188,33 +180,6 @@ def ssim_loss(y_pred, y_true):
     y_true = tf.convert_to_tensor(y_true, dtype=tf.float32)
     return -1 * tf.reduce_sum(-1 + tf.image.ssim(y_pred, y_true, max_val=1.0, filter_size=11,
                                                  filter_sigma=1.5, k1=0.01, k2=0.03))
-
-
-def contentFunc():
-    cnn = tf.keras.applications.vgg19.VGG19(include_top=False, input_shape=(hyper_params['crop_size'], hyper_params['crop_size'], 3))
-    input = cnn.inputs
-    output = cnn.layers[9].output
-    model = tf.keras.models.Model(input, output)
-    model.trainable = False
-    return model
-
-
-class PerceptualLoss:
-
-    def __init__(self, loss):
-        self.criterion = loss
-        self.contentFunc = contentFunc()
-
-    def get_loss(self, fakeIm, realIm):
-        f_fake = self.contentFunc(fakeIm)
-        f_real = self.contentFunc(realIm)
-        loss = self.criterion(f_fake, f_real)
-        return loss
-
-
-def perceptual_loss(y_pred, y_true):
-    P = PerceptualLoss(tf.keras.losses.MeanSquaredError())
-    return 0.2 * P.get_loss(y_pred, y_true)
 
 
 d_loss_fn, g_loss_fn = gan.get_adversarial_losses_fn(hyper_params['adversarial_loss_mode'])
@@ -241,24 +206,21 @@ D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 
-# @tf.function
+@tf.function
 def train_G(A_True, B_True):
     with tf.GradientTape() as t:
         A2B_Fake = G_A2B(A_True, training=True)[0]
         A2B_m = G_A2B(A_True, training=True)[2]
         A2B_n = G_A2B(A_True, training=True)[3]
-        A2B_content = G_A2B(A_True, training=True)[4]
         B2A_Fake = G_B2A(B_True, training=True)
         A2B2A_Fake = G_B2A(A2B_Fake, training=True)
         B2A2B_Fake = G_A2B(B2A_Fake, training=True)[0]
         B2A2B_m = G_A2B(B2A_Fake, training=True)[2]
         B2A2B_n = G_A2B(B2A_Fake, training=True)[3]
-        B2A2B_content = G_A2B(B2A_Fake, training=True)[4]
         A2A = G_B2A(A_True, training=True)
         B2B = G_A2B(B_True, training=True)[0]
         B2B_m = G_A2B(B_True, training=True)[2]
         B2B_n = G_A2B(B_True, training=True)[3]
-        B2B_content = G_A2B(B_True, training=True)[4]
         # A2B, mask_B, temp_B = G_A2B(A, training=True)
         # B2A, mask_A, temp_A = G_B2A(B, training=True)
         # A2B2A, _, _ = G_B2A(A2B, training=True)
@@ -291,19 +253,12 @@ def train_G(A_True, B_True):
         s_loss_1 = ssim_loss(A2B_m, A2B_n)
         s_loss_2 = ssim_loss(B2A2B_m, B2A2B_n)
         s_loss_3 = ssim_loss(B2B_m, B2B_n)
-        s_loss_4 = ssim_loss(A2B_Fake, B_True)
-
-        Perceptual_loss_1 = perceptual_loss(A2B_content, B_True)
-        Perceptual_loss_2 = perceptual_loss(B2A2B_content, B_True)
-        Perceptual_loss_3 = perceptual_loss(B2B_content, B_True)
 
         G_loss = \
         hyper_params['g_loss_weight'] * (A2B_g_loss + B2A_g_loss) + \
         hyper_params['cycle_loss_weight'] * (A2B2A_cycle_loss + B2A2B_cycle_loss) + \
         hyper_params['identity_loss_weight'] * (A2A_id_loss + B2B_id_loss) + \
-        hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3) + \
-        hyper_params['ssim_Fake_True_weight'] * s_loss_4 + \
-        (Perceptual_loss_1 + Perceptual_loss_2 + Perceptual_loss_3)
+        hyper_params['ssim_loss_weight'] * (s_loss_1 + s_loss_2 + s_loss_3)
         # hyper_params['std_loss_weight'] * std_loss_1
 
     G_grad = t.gradient(G_loss, G_A2B.trainable_variables + G_B2A.trainable_variables)
@@ -316,8 +271,6 @@ def train_G(A_True, B_True):
                                 'A2A_id_loss': A2A_id_loss,
                                 'B2B_id_loss': B2B_id_loss,
                                 's_loss': s_loss_1 + s_loss_2 + s_loss_3,
-                                'ssim_Fake_True_weight': s_loss_4,
-                                'Perceptual_loss': Perceptual_loss_1 + Perceptual_loss_2 + Perceptual_loss_3,
                                 # 'std_loss': std_loss_1
                                 }
     # 'loss_reg_A': loss_reg_A,
@@ -491,16 +444,16 @@ def train(Step=0):
                         A2B, B2A, A2B_mask, A2B2A, B2A2B, B2A2B_mask, m, n, A2A, A2A_mask = sample(A, B)
                         metrics_info, model = Validation(G_A2B, A_mask_dataset)
                         m_iou = metrics_info[-1]
-                        tl.summary({'Metrics/m_IoU': tf.convert_to_tensor(m_iou)}, step=G_optimizer.iterations, name='m_IoU')
-                        tl.summary({'Metrics/acc': tf.convert_to_tensor(metrics_info[1])}, step=G_optimizer.iterations,
+                        tl.summary({'m_IoU': tf.convert_to_tensor(m_iou)}, step=G_optimizer.iterations, name='m_IoU')
+                        tl.summary({'acc': tf.convert_to_tensor(metrics_info[1])}, step=G_optimizer.iterations,
                                    name='acc')
-                        tl.summary({'Metrics/m_Pr': tf.convert_to_tensor(metrics_info[2])}, step=G_optimizer.iterations,
+                        tl.summary({'m_Pr': tf.convert_to_tensor(metrics_info[2])}, step=G_optimizer.iterations,
                                    name='m_Pr')
-                        tl.summary({'Metrics/m_Re': tf.convert_to_tensor(metrics_info[3])}, step=G_optimizer.iterations,
+                        tl.summary({'m_Re': tf.convert_to_tensor(metrics_info[3])}, step=G_optimizer.iterations,
                                    name='m_Re')
-                        tl.summary({'Metrics/m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
+                        tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
                                    name='m_F1')
-                        if m_iou > 0.4:
+                        if m_iou > 0.6:
 
                             model.save(os.path.join(output_dir, 'save_model',
                                                     '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))

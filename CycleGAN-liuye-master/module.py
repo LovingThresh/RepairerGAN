@@ -88,7 +88,7 @@ def _get_norm_layer(norm):
         return keras.layers.LayerNormalization
 
 
-def ResnetGenerator(input_shape=(224, 224, 3),
+def ResnetGenerator(input_shape=(227, 227, 3),
                     output_channels=3,
                     dim=64,
                     n_downsamplings=2,
@@ -96,7 +96,7 @@ def ResnetGenerator(input_shape=(224, 224, 3),
                     norm='instance_norm',
                     attention=False):
     if attention:
-        output_channels = output_channels * 2
+        output_channels = output_channels + 1
         # output_channels = output_channels
     Norm = _get_norm_layer(norm)
 
@@ -153,13 +153,12 @@ def ResnetGenerator(input_shape=(224, 224, 3),
 
     # 5
     h = tf.pad(h, [[0, 0], [3, 3], [3, 3], [0, 0]], mode='REFLECT')
-    h = keras.layers.Conv2D(output_channels, 7, padding='valid')(h)
+    h = keras.layers.Conv2D(output_channels, 8, padding='valid')(h)
     if not attention:
         h = tf.tanh(h)
         return keras.Model(inputs=inputs, outputs=h)
     # 假如我不添加tanh的话，又会出现报错
     if attention:
-        h = keras.layers.Dropout(0.2)(h)
         # h = keras.layers.Conv2D(3, (4, 4), (1, 1), "valid")(h)
         # h, attention_mask = CBAM_conv_block(h, [64, 64, 256], 16, name="CBAM")
         # h = keras.layers.Conv2DTranspose(3, (4, 4), (1, 1), "valid")(h)
@@ -168,7 +167,7 @@ def ResnetGenerator(input_shape=(224, 224, 3),
         # h = keras.layers.multiply([h, attention_mask])
         # h = keras.layers.Activation('tanh')(h)
         # attention_mask = keras.layers.Activation('tanh')(attention_mask)
-        attention_mask = h[:, :, :, 3:]
+        attention_mask = h[:, :, :, 0:1]
         attention_mask = tf.pad(attention_mask, [[0, 0], [1, 1], [1, 1], [0, 0]], mode='REFLECT')
         attention_mask = Conv2D(64, (3, 3), (1, 1), 'same', use_bias=False)(attention_mask)
         attention_mask = Norm()(attention_mask)
@@ -185,7 +184,7 @@ def ResnetGenerator(input_shape=(224, 224, 3),
         # 应该对上述式子进行更进一步的研究
         # attention_mask = tf.sigmoid(h[:, :, :, 0])  # 91
 
-        content_mask = h[:, :, :, :3]
+        content_mask = h[:, :, :, 1:]
         h = tf.tanh(tf.tanh(content_mask * attention_mask) + inputs * (1 - attention_mask))
 
         return keras.Model(inputs=inputs, outputs=[h, attention_mask])
@@ -277,8 +276,7 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
     h = keras.layers.Conv2D(filters=dim, kernel_size=(4, 4), strides=(4, 4), padding='valid', use_bias=False)(h)
     for i in range(n_downsampling):
         dim = dim * 2
-        # for _ in range(3):
-        #     h = ResNeXt_block(h)
+        h = ResNeXt_block(h)
         h = keras.layers.Conv2D(filters=dim, kernel_size=(2, 2), strides=(2, 2), padding='valid', use_bias=False)(h)
 
     assert h.shape[-1] == dim
@@ -288,8 +286,7 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
 
     for i in range(n_upsampling):
         dim = dim / 2
-        # for _ in range(3):
-        #     h = ResNeXt_block(h)
+        h = ResNeXt_block(h)
         h = keras.layers.Conv2DTranspose(filters=dim, kernel_size=(2, 2), strides=(2, 2), padding='valid',
                                          use_bias=False)(h)
 
@@ -301,7 +298,7 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
     if attention:
         h = keras.layers.Conv2D(filters=output_channel * 2, kernel_size=(7, 7), strides=(1, 1), padding='same',
                                 use_bias=False)(h)
-        h = keras.layers.Dropout(0.2)(h)
+        h = keras.layers.Dropout(0.4)(h)
         content = h[:, :, :, :3]
         content = tf.tanh(content)
 
@@ -313,7 +310,7 @@ def AttentionCycleGAN_v1_Generator(input_shape=(224, 224, 3), output_channel=3, 
         m = (1 - attention) * inputs
         n = (1 - attention) * h
 
-        return keras.Model(inputs=inputs, outputs=[h, attention, m, n, content])
+        return keras.Model(inputs=inputs, outputs=[h, attention, m, n])
 
     h = keras.layers.Conv2D(filters=output_channel, kernel_size=(7, 7), strides=(1, 1), padding='same',
                             use_bias=False)(h)

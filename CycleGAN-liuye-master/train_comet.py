@@ -11,8 +11,10 @@ import random
 import os.path
 import datetime
 import functools
-from comet_ml import Experiment
 
+import matplotlib.pyplot as plt
+from comet_ml import Experiment
+from Comparison.CRFs import CRFs_array
 import imlib as im
 import numpy as np
 import pylib as py
@@ -37,7 +39,7 @@ if experiment:
 def setup_seed(seed):
     np.random.seed(seed)
     random.seed(seed)
-    tf.set_random_seed(seed)
+    tf.random.set_seed(seed)
 
 
 setup_seed(24)
@@ -57,7 +59,7 @@ hyper_params = {
     'load_size': 224,
     'crop_size': 224,
     'batch_size': 3,
-    'epochs': 1,
+    'epochs': 5,
     'epoch_decay': 2,
     'learning_rate_G': 0.0002,
     'learning_rate_D': 0.00002,
@@ -206,7 +208,7 @@ D_optimizer = keras.optimizers.RMSprop(learning_rate=D_lr_scheduler)
 # ==============================================================================
 
 
-@tf.function
+# @tf.function
 def train_G(A_True, B_True):
     with tf.GradientTape() as t:
         A2B_Fake = G_A2B(A_True, training=True)[0]
@@ -402,6 +404,18 @@ def Validation(model, dataset):
     return model.evaluate(dataset), model
 
 
+def Validation_Post(model, dataset):
+    m_iou = 0
+    for i, (image, label) in enumerate(dataset):
+        result = model.predict(image)[1][:, :, :, 0:1]
+        result = np.asarray(result > 0.5, dtype=np.uint8).reshape((224, 224))
+        image = np.asarray((image + 1) * 127.5, dtype=np.uint8).reshape((224, 224, 3))
+        post_result = CRFs_array(image, result)
+        plt.imshow(post_result * 255)
+        m_iou += Metrics.M_IOU(label, post_result.reshape(label.shape))
+    m_iou = m_iou / (i + 1)
+    return m_iou
+
 # ==============================================================================
 # =                     summary and train                                      =
 # ==============================================================================
@@ -454,9 +468,10 @@ def train(Step=0):
                         tl.summary({'m_F1': tf.convert_to_tensor(metrics_info[4])}, step=G_optimizer.iterations,
                                    name='m_F1')
                         if m_iou > 0.6:
-
+                            m_iou_array = Validation_Post(G_A2B, A_mask_dataset)
+                            print(m_iou_array)
                             model.save(os.path.join(output_dir, 'save_model',
-                                                    '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou)))
+                                                    '{}-{}-{}/'.format(ep, G_optimizer.iterations.numpy(), m_iou_array)))
                         img = im.immerge(np.concatenate(
                             [A[0:1, :, :, :], A2B, A2B_mask, A2B2A, m, A2A,
                              B[0:1, :, :, :], B2A, B2A2B_mask, B2A2B, n, A2A_mask],
@@ -472,14 +487,19 @@ def train(Step=0):
 
 
 def validation():
-    model = keras.models.load_model(r'P:\GAN_CheckPoint\G_A2B/')
+    model = keras.models.load_model(r'E:\Cycle_GAN\output\2022-05-12-11-11-39.737880\save_model\0-2700-0.8056701421737671',
+                                    custom_objects={
+                                        'M_Precision': Metrics.M_Precision,
+                                        'M_Recall': Metrics.M_Recall,
+                                        'M_F1': Metrics.M_F1,
+                                        'M_IOU': Metrics.M_IOU
+                                    })
     initial_learning_rate = 5e-5
     optimizer = keras.optimizers.RMSprop(initial_learning_rate)
     model = keras.models.Model(inputs=model.inputs, outputs=model.outputs[0][:, :, :, 0:1])
     model.compile(optimizer=optimizer,
                   loss=keras.losses.BinaryCrossentropy(),
                   metrics=['accuracy', Metrics.M_Precision, Metrics.M_Recall, Metrics.M_F1, Metrics.M_IOU])
-
     model.evaluate(A_mask_dataset)
 
 

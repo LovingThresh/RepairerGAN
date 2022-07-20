@@ -7,11 +7,13 @@
 # @Source  : https://blog.csdn.net/weixin_41645749/article/details/115751000
 import os
 import math
+import random
 import time
 from PIL import Image
 import matplotlib.pyplot as plt
 
 import torch
+import torchsummary
 import torch.nn as nn
 import torch.optim as optim
 from torchvision import transforms
@@ -63,7 +65,7 @@ class ResNet(nn.Module):
     def __init__(self, block, layers, num_classes=1000):
         self.inplanes = 64
         super(ResNet, self).__init__()
-
+        self.num_classes = num_classes
         self.conv1 = nn.Conv2d(3, 64, kernel_size=7, stride=2, padding=3, bias=False)
         self.relu = nn.ReLU(inplace=True)
         self.bn1 = nn.BatchNorm2d(64)
@@ -72,8 +74,25 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2)
         self.layer3 = self._make_layer(block, 256, layers[2], stride=2)
         self.layer4 = self._make_layer(block, 512, layers[3], stride=2)
-        self.avgpool = nn.AvgPool2d(7)
-        self.fc = nn.Linear(512 * block.expansion, num_classes)
+        # self.avgpool = nn.AvgPool2d((7, 7))
+        self.classifier = nn.ModuleList()
+        self.classifier.append(nn.AdaptiveAvgPool2d((1, 1)))
+        self.classifier.append(nn.Flatten())
+        self.classifier.append(nn.Linear(512 * block.expansion, self.num_classes))
+        # self.classifier.append(nn.Flatten())
+        # self.classifier.append(nn.Linear(512 * block.expansion, self.num_classes))
+        self.classifier = nn.Sequential(*self.classifier)
+
+        self.features = nn.ModuleList()
+        self.features.append(self.conv1)
+        self.features.append(self.relu)
+        self.features.append(self.bn1)
+        self.features.append(self.maxpool)
+        self.features.append(self.layer1)
+        self.features.append(self.layer2)
+        self.features.append(self.layer3)
+        self.features.append(self.layer4)
+        # self.features.append(self.avgpool)
 
         # 遍历所有模块，然后对其中参数进行初始化
         for m in self.modules():  # self.modules()采用深度优先遍历的方式，存储了net的所有模块
@@ -111,10 +130,8 @@ class ResNet(nn.Module):
         x = self.layer3(x)
         x = self.layer4(x)
 
-        x = self.avgpool(x)
-        x = x.view(x.size(0), -1)
-        x = self.fc(x)
-
+        x = self.classifier(x)
+        x = x.view(-1, self.num_classes)
         return x
 
 
@@ -131,7 +148,7 @@ def resnet50(pretrained=False):
 
 
 # 初始化根目录
-train_path = 'datasets/crack/'
+train_path = r'P:/GAN/CycleGAN-liuye-master/CycleGAN-liuye-master/datasets/crack/'
 
 
 # 定义读取文件的格式
@@ -140,6 +157,7 @@ class MyDataSet(Dataset):
     def __init__(self, data_path: str, key='train'):
         super(MyDataSet, self).__init__()
         self.data_path = data_path
+        self.key = key
         self.transform = transforms.Compose(
             [
                 transforms.Resize(size=(224, 224)),
@@ -147,25 +165,29 @@ class MyDataSet(Dataset):
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
         )
-        self.path_list_Positive = os.listdir(data_path + key + '_Positive')
-        self.path_list_Negative = os.listdir(data_path + key + '_Negative')
+        self.path_list_Positive = os.listdir(data_path + self.key + '_Positive')
+        self.path_list_Negative = os.listdir(data_path + self.key + '_Negative')
 
     def __getitem__(self, idx: int):
 
-        label = torch.randint(0, 1, (1, ))
+        label = random.choice([0, 1])
         if label == 1:
             img_path = self.path_list_Positive[idx]
+            self.data_path_ = self.data_path + self.key + '_Positive'
+            label = [1, 0]
         else:
             img_path = self.path_list_Negative[idx]
+            self.data_path_ = self.data_path + self.key + '_Negative'
+            label = [0, 1]
 
-        label = torch.as_tensor(label, dtype=torch.int64)
-        img_path = os.path.join(self.data_path, img_path)
+        label = torch.as_tensor(label, dtype=torch.float32)
+        img_path = os.path.join(self.data_path_, img_path)
         img = Image.open(img_path)
         img = self.transform(img)
         return img, label
 
     def __len__(self) -> int:
-        return len(self.path_list_Positive + self.path_list_Negative)
+        return len(self.path_list_Positive)
 
 
 train_ds = MyDataSet(train_path, key='train')
@@ -178,7 +200,7 @@ new_val_loader = DataLoader(val_ds, batch_size=32, shuffle=True, pin_memory=True
 new_test_loader = DataLoader(test_ds, batch_size=32, shuffle=False, pin_memory=True, num_workers=0)
 
 LR = 0.0005  # 设置学习率
-EPOCH_NUM = 10  # 训练轮次
+EPOCH_NUM = 100  # 训练轮次
 
 
 def time_since(since):
@@ -189,7 +211,7 @@ def time_since(since):
 
 
 model = resnet50()
-
+torchsummary.summary(model, (3, 224, 224), 1, device='cpu')
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
@@ -231,11 +253,13 @@ def val():
             inputs, target = data[0], data[1]
             inputs, target = inputs.to(device), target.to(device)
             outputs = model(inputs)
-            _, prediction = torch.max(outputs.data, dim=1)
-
+            prediction = torch.argmax(outputs, dim=1)
+            target = torch.argmax(target, dim=1)
             total += target.size(0)
             correct += (prediction == target).sum().item()
         print('Accuracy on test set: (%d/%d)%d %%' % (correct, total, 100 * correct / total))
+        if 100 * correct / total > 98.5:
+            torch.save(model.state_dict(), 'Model.pth')
         with open("test.txt", "a") as f:
             f.write('Accuracy on test set: (%d/%d)%d %% \n' % (correct, total, 100 * correct / total))
 
@@ -250,7 +274,6 @@ if __name__ == '__main__':
     for epoch in range(EPOCH_NUM):
         train(epoch, loss_list)
         val()
-    torch.save(model.state_dict(), 'Model.pth')
 
     x_ori = []
     for i in range(len(loss_list)):

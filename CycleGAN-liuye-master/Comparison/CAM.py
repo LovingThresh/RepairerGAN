@@ -17,7 +17,8 @@ import torch.nn.functional as F
 from Comparison.classification import resnet50
 from torchvision import transforms
 global features_grad
-
+from pytorch_grad_cam import GradCAM, GradCAMPlusPlus, ScoreCAM, AblationCAM
+from pytorch_grad_cam.utils.image import show_cam_on_image
 transform = transforms.Compose(
             [
                 transforms.Resize(size=(224, 224)),
@@ -94,14 +95,30 @@ def draw_CAM(model, img_path, save_path, transform=None, visual_heatmap=False):
     cv2.imwrite(save_path[:-4] + '.png', heatmap)  # 将图像保存到硬盘
 
 
-# img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\test_Positive/'
-# save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\test_Positive_CAM_mask/'
-# model = resnet50()
-# model.load_state_dict(torch.load(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\Comparison\Model.pth'))
-# for file in os.listdir(img_path):
-#     img_path_ = img_path + file
-#     save_path_ = save_path + file
-#     draw_CAM(model, img_path_, save_path_, transform=transform, visual_heatmap=False)
+img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive/'
+save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\ann_dir\val_Positive_Score_CAM_mask/'
+model = resnet50()
+model.cuda()
+model.load_state_dict(torch.load(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\Comparison\Model.pth'))
+target_layers = [model.layer4[-1]]
+T = transform
+for file in os.listdir(img_path):
+    img_path_ = img_path + file
+    save_path_ = save_path + file
+    img_pil = Image.open(img_path_)
+    input_tensor = T(img_pil)
+    input_tensor = input_tensor.reshape((1, 3, 224, 224))
+    input_tensor.cuda()
+    cam = ScoreCAM(model=model, target_layers=target_layers, use_cuda=True)
+    targets = None
+    grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
+    grayscale_cam = grayscale_cam.swapaxes(0, 1)
+    grayscale_cam = grayscale_cam.swapaxes(2, 1)
+    grayscale_cam = cv2.resize(grayscale_cam, (224, 224))
+    grayscale_cam = grayscale_cam.reshape((224, 224))
+    grayscale_cam = (grayscale_cam > 0.5).astype(np.uint8)
+    cv2.imwrite(save_path_[:-4] + '.png', grayscale_cam)
+
 
 
 

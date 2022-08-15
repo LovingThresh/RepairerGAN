@@ -116,9 +116,9 @@ def CRFs(original_image_path, predicted_image_path, CRF_image_path):
     print("CRF图像保存在", CRF_image_path, "!")
 
 
-# o_img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive/'
-# p_img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive_CAM_mask/'
-# save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive_CAM_CRFs_mask/'
+# o_img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive/'
+# p_img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive_CAM_mask/'
+# save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive_CAM_CRFs_mask/'
 #
 # for file in os.listdir(o_img_path):
 #     img_path_ = o_img_path + file

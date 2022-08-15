@@ -12,6 +12,7 @@ import os.path
 import datetime
 import functools
 
+import cv2
 import matplotlib.pyplot as plt
 from comet_ml import Experiment
 from Comparison.CRFs import CRFs_array
@@ -411,10 +412,13 @@ def Validation_Post(model, dataset):
         result = np.asarray(result > 0.5, dtype=np.uint8).reshape((224, 224))
         image = np.asarray((image + 1) * 127.5, dtype=np.uint8).reshape((224, 224, 3))
         post_result = CRFs_array(image, result)
+        post_result = np.asarray(post_result > 0.5, dtype=np.uint8).reshape((224, 224))
+        post_result = cv2.dilate(post_result.reshape(224, 224, 1), (3, 3), iterations=3)
         plt.imshow(post_result * 255)
         m_iou += Metrics.M_IOU(label, post_result.reshape(label.shape))
     m_iou = m_iou / (i + 1)
     return m_iou
+
 
 # ==============================================================================
 # =                     summary and train                                      =

@@ -7,7 +7,8 @@
 norm_cfg = dict(type='BN', requires_grad=True)  # 分割框架通常使用 SyncBN
 model = dict(
     type='EncoderDecoder',  # 分割器(segmentor)的名字
-    pretrained='open-mmlab://resnet50_v1c',  # 将被加载的 ImageNet 预训练主干网络
+    # pretrained='open-mmlab://resnet50_v1c',  # 将被加载的 ImageNet 预训练主干网络
+    pretrained=None,
     backbone=dict(
         type='ResNetV1c',  # 主干网络的类别。 可用选项请参考 mmseg/models/backbones/resnet.py
         depth=50,  # 主干网络的深度。通常为 50 和 101。
@@ -99,13 +100,13 @@ test_pipeline = [
         ])
 ]
 data = dict(
-    samples_per_gpu=2,  # 单个 GPU 的 Batch size
+    samples_per_gpu=4,  # 单个 GPU 的 Batch size
     workers_per_gpu=1,  # 单个 GPU 分配的数据加载线程数
     train=dict(  # 训练数据集配置
         type='CrackDataset',  # 数据集的类别, 细节参考自 mmseg/datasets/。
         data_root='../datasets/crack/',  # 数据集的根目录。
         img_dir='img_dir/train_Positive/',  # 数据集图像的文件夹。
-        ann_dir='ann_dir/train_Positive_CAM_mask/',  # 数据集注释的文件夹。
+        ann_dir='ann_dir/train_Positive_CAM_CRFs_mask/',  # 数据集注释的文件夹。
         pipeline=[  # 流程， 由之前创建的 train_pipeline 传递进来。
             dict(type='LoadImageFromFile'),
             dict(type='LoadAnnotations'),
@@ -125,7 +126,7 @@ data = dict(
         type='CrackDataset',
         data_root='../datasets/crack/',
         img_dir='img_dir/val_Positive/',
-        ann_dir='ann_dir/val_Positive_CAM_mask/',
+        ann_dir='ann_dir/val_true/',
         pipeline=[  # 由之前创建的 test_pipeline 传递的流程。
             dict(type='LoadImageFromFile'),
             dict(type='Resize', img_scale=(224, 224)),

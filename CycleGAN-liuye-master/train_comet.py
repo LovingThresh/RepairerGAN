@@ -29,7 +29,7 @@ import Metrics
 import tf2lib as tl
 import tf2gan as gan
 
-experiment_button = True
+experiment_button = False
 training = True
 experiment = object
 
@@ -516,3 +516,10 @@ if training:
         experiment.end()
     else:
         train()
+
+file = os.listdir(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive_mask/')
+for single_file in file:
+    image = cv2.imread(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive_mask/' + single_file, cv2.IMREAD_GRAYSCALE)
+    image = (image > 127.5).astype(np.uint8)
+    cv2.imwrite(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\ann_dir\val_true/' + single_file, image)
+

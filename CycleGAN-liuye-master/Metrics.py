@@ -18,7 +18,7 @@ def M_Precision(y_true, y_pred):
     """精确率"""
     # y_pred = K.softmax(K.concatenate([y_pred * 5, (1 - y_pred) * 5], axis=-1))
     y_pred = y_pred[:, :, :, 0:1]
-    y_pred = tf.cast(y_pred > tf.constant(0.5), tf.float32)
+    y_pred = tf.cast(y_pred > tf.constant(0.3), tf.float32)
 
     max_pool_2d = tf.keras.layers.MaxPooling2D(pool_size=(1, 1), strides=(1, 1), padding='same')
     y_true_max = max_pool_2d(y_true)
@@ -33,7 +33,7 @@ def M_Recall(y_true, y_pred):
     """召回率"""
     # y_pred = K.softmax(K.concatenate([y_pred * 5, (1 - y_pred) * 5], axis=-1))
     y_pred = y_pred[:, :, :, 0:1]
-    y_pred = tf.cast(y_pred > tf.constant(0.5), tf.float32)
+    y_pred = tf.cast(y_pred > tf.constant(0.3), tf.float32)
     tp = K.sum(
         K.round(K.clip(y_true, 0, 1)) * K.round(K.clip(y_pred, 0, 1)))  # true positives
     pp = K.sum(K.round(K.clip(y_true, 0, 1)))  # possible positives
@@ -54,7 +54,7 @@ def M_IOU(y_true: tf.Tensor,
           y_pred: tf.Tensor):
     # y_pred = K.softmax(K.concatenate([y_pred * 5, (1 - y_pred) * 5], axis=-1))
     y_pred = y_pred[:, :, :, 0:1]
-    y_pred = tf.cast(y_pred > tf.constant(0.5), tf.float32)
+    y_pred = tf.cast(y_pred > tf.constant(0.3), tf.float32)
     max_pool_2d = tf.keras.layers.MaxPooling2D(pool_size=(1, 1), strides=(1, 1), padding='same')
     y_true_max = max_pool_2d(y_true)
     predict = K.round(K.clip(y_pred, 0, 1))

@@ -82,7 +82,8 @@ class UNet(Network):
         x = layers.UpSampling2D(size=(2, 2))(x)
         x = layers.Conv2D(num_classes, 1, strides=1,
                           kernel_initializer='he_normal')(x)
-        x = layers.BatchNormalization()(x)
+        x = tf.sigmoid(x)
+        # x = layers.BatchNormalization()(x)
 
         outputs = x
         return models.Model(inputs, outputs, name=self.version)

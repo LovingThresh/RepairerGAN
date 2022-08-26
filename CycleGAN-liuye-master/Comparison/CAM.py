@@ -14,14 +14,18 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
-from Comparison.classification import resnet50
+from classification import resnet50
 from torchvision import transforms
 global features_grad
 from pytorch_grad_cam import GradCAM, GradCAMPlusPlus, ScoreCAM, AblationCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
+
+
+size = (224, 224)
+
 transform = transforms.Compose(
             [
-                transforms.Resize(size=(224, 224)),
+                transforms.Resize(size=size),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
@@ -44,7 +48,7 @@ def draw_CAM(model, img_path, save_path, transform=None, visual_heatmap=False):
     if transform:
         img = transform(img)
     img = img.unsqueeze(0)
-
+    img = img.cuda()
     # 获取模型输出的feature/score
     model.eval()
     model.features = torch.nn.Sequential(*model.features)
@@ -75,7 +79,7 @@ def draw_CAM(model, img_path, save_path, transform=None, visual_heatmap=False):
         features[i, ...] *= pooled_grads[i, ...]
 
     # 以下部分同Keras版实现
-    heatmap = features.detach().numpy()
+    heatmap = features.detach().cpu().numpy()
     heatmap = np.mean(heatmap, axis=0)
 
     heatmap = np.maximum(heatmap, 0)
@@ -87,35 +91,40 @@ def draw_CAM(model, img_path, save_path, transform=None, visual_heatmap=False):
         plt.show()
 
     img = cv2.imread(img_path)  # 用cv2加载原始图像
-    img = cv2.resize(img, (224, 224))
-    heatmap = cv2.resize(heatmap, (224, 224))  # 将热力图的大小调整为与原始图像相同
+    img = cv2.resize(img, size)
+    heatmap = cv2.resize(heatmap, size)  # 将热力图的大小调整为与原始图像相同
     heatmap = (heatmap > 0.5).astype(np.uint8)
     if heatmap.max() > 1:
         raise
     cv2.imwrite(save_path[:-4] + '.png', heatmap)  # 将图像保存到硬盘
 
 
-img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive/'
-save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\ann_dir\val_Positive_Score_CAM_mask/'
+img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive/'
+save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive_Ablation_CAM_mask/'
+
 model = resnet50()
 model.cuda()
 model.load_state_dict(torch.load(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\Comparison\Model.pth'))
+
 target_layers = [model.layer4[-1]]
 T = transform
+
+
 for file in os.listdir(img_path):
     img_path_ = img_path + file
     save_path_ = save_path + file
+    # draw_CAM(model, img_path_, save_path_, transform=T)
     img_pil = Image.open(img_path_)
     input_tensor = T(img_pil)
     input_tensor = input_tensor.reshape((1, 3, 224, 224))
     input_tensor.cuda()
-    cam = ScoreCAM(model=model, target_layers=target_layers, use_cuda=True)
+    cam = AblationCAM(model=model, target_layers=target_layers, use_cuda=True)
     targets = None
     grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
     grayscale_cam = grayscale_cam.swapaxes(0, 1)
     grayscale_cam = grayscale_cam.swapaxes(2, 1)
-    grayscale_cam = cv2.resize(grayscale_cam, (224, 224))
-    grayscale_cam = grayscale_cam.reshape((224, 224))
+    grayscale_cam = cv2.resize(grayscale_cam, size)
+    grayscale_cam = grayscale_cam.reshape(size)
     grayscale_cam = (grayscale_cam > 0.5).astype(np.uint8)
     cv2.imwrite(save_path_[:-4] + '.png', grayscale_cam)
 

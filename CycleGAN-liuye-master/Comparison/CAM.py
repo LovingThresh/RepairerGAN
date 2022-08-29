@@ -14,7 +14,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 import torch.nn.functional as F
-from classification import resnet50
+from Comparison.classification import resnet50
 from torchvision import transforms
 global features_grad
 from pytorch_grad_cam import GradCAM, GradCAMPlusPlus, ScoreCAM, AblationCAM
@@ -99,12 +99,12 @@ def draw_CAM(model, img_path, save_path, transform=None, visual_heatmap=False):
     cv2.imwrite(save_path[:-4] + '.png', heatmap)  # 将图像保存到硬盘
 
 
-img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive/'
-save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\train_Positive_Ablation_CAM_mask/'
+img_path = r'datasets/crack/train_Positive/'
+save_path = r'datasets/crack/train_Positive_Ablation_CAM_mask/'
 
 model = resnet50()
 model.cuda()
-model.load_state_dict(torch.load(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\Comparison\Model.pth'))
+model.load_state_dict(torch.load('Comparison/Model.pth'))
 
 target_layers = [model.layer4[-1]]
 T = transform

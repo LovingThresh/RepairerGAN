@@ -116,15 +116,19 @@ def CRFs(original_image_path, predicted_image_path, CRF_image_path):
     print("CRF图像保存在", CRF_image_path, "!")
 
 
-# o_img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive/'
-# p_img_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive_CAM_mask/'
-# save_path = r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\val_Positive_CAM_CRFs_mask/'
-#
-# for file in os.listdir(o_img_path):
-#     img_path_ = o_img_path + file
-#     p_img_path_ = p_img_path + file[:-4] + '.png'
-#     save_path_ = save_path + file[:-4] + '.png'
-#     CRFs(img_path_, p_img_path_, save_path_)
+a = ['train_Positive_Grad_CAMPlusPlus_mask', 'train_Positive_Score_CAM_mask', 'train_Positive_Ablation_CAM_mask']
+b = ['train_Positive_Grad_CAMPlusPlus_CRFs_mask', 'train_Positive_Score_CAM_CRFs_mask', 'train_Positive_Ablation_CAM_CRFs_mask']
+
+o_img_path = '/root/auto-tmp/CycleGAN-liuye-master/CycleGAN-liuye-master/datasets/crack/train_Positive/'
+p_img_path = '/root/auto-tmp/CycleGAN-liuye-master/CycleGAN-liuye-master/datasets/crack/ann_dir/train_Positive_Grad_CAM_mask/'
+save_path =  '/root/auto-tmp/CycleGAN-liuye-master/CycleGAN-liuye-master/datasets/crack/ann_dir/train_Positive_Grad_CAM_CRFs_mask/'
+os.makedirs(save_path)
+
+for file in os.listdir(o_img_path):
+    img_path_ = o_img_path + file
+    p_img_path_ = p_img_path + file[:-4] + '.png'
+    save_path_ = save_path + file[:-4] + '.png'
+    CRFs(img_path_, p_img_path_, save_path_)
 
 
 def CRFs_array(original_image, predicted_image):

@@ -491,7 +491,7 @@ def train(Step=0):
 
 
 def validation():
-    model = keras.models.load_model(r'E:\Cycle_GAN\output\2022-05-12-11-11-39.737880\save_model\0-2700-0.8056701421737671',
+    model = keras.models.load_model(r'E:\Cycle_GAN\output\2022-07-18-10-38-57.971432\save_model\0-2700-0.7883331775665283',
                                     custom_objects={
                                         'M_Precision': Metrics.M_Precision,
                                         'M_Recall': Metrics.M_Recall,

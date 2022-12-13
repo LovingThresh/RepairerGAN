@@ -4,6 +4,8 @@
 # @Email   : csu1704liuye@163.com | sy2113205@buaa.edu.cn
 # @File    : Crop_Image.py
 # @Software: PyCharm
+import os
+
 import cv2
 import numpy as np
 
@@ -52,3 +54,28 @@ cv2.imwrite('M:/CycleGAN(WSSS)/File/image/iter_26800_gan_image.png', iter_26800_
 iter_26800_att_image = iter_26800_image[:227, 454:454+227]
 iter_26800_att_image = cv2.resize(iter_26800_att_image, (224, 224))
 cv2.imwrite('M:/CycleGAN(WSSS)/File/image/iter_26800_att_image.png', iter_26800_att_image)
+
+m = 9
+
+image = cv2.imread(r'C:\Users\liuye\Desktop\image\iter-000000001.jpg')
+image_1 = image[:227, :227]
+image_2 = image[:227, 227:454]
+image_3 = image[:227, 454:454 + 227]
+cv2.imwrite(r'C:\Users\liuye\Desktop\image/{}.png'.format(m), cv2.resize(image_1, (224, 224)))
+cv2.imwrite(r'C:\Users\liuye\Desktop\image/{}.png'.format(m + 1), cv2.resize(image_2, (224, 224)))
+cv2.imwrite(r'C:\Users\liuye\Desktop\image/{}.png'.format(m + 2), cv2.resize(image_3, (224, 224)))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

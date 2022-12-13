@@ -21,7 +21,7 @@ from pytorch_grad_cam import GradCAM, GradCAMPlusPlus, ScoreCAM, AblationCAM
 from pytorch_grad_cam.utils.image import show_cam_on_image
 
 
-size = (224, 224)
+size = (448, 448)
 
 transform = transforms.Compose(
             [
@@ -93,10 +93,12 @@ def draw_CAM(model, img_path, save_path, transform=None, visual_heatmap=False):
     img = cv2.imread(img_path)  # 用cv2加载原始图像
     img = cv2.resize(img, size)
     heatmap = cv2.resize(heatmap, size)  # 将热力图的大小调整为与原始图像相同
-    heatmap = (heatmap > 0.5).astype(np.uint8)
+    # heatmap = (heatmap > 0.5).astype(np.uint8)
     if heatmap.max() > 1:
         raise
     cv2.imwrite(save_path[:-4] + '.png', heatmap)  # 将图像保存到硬盘
+
+    return heatmap
 
 
 img_path = r'datasets/crack/train_Positive/'
@@ -109,26 +111,43 @@ model.load_state_dict(torch.load('Comparison/Model.pth'))
 target_layers = [model.layer4[-1]]
 T = transform
 
+img_path_ = r'M:\CycleGAN(WSSS)\File\FeatureImage\image_0.png'
+save_path_ = r'M:\CycleGAN(WSSS)\File\FeatureImage\image_2_CCAM.png'
+heat_map = draw_CAM(model, img_path_, save_path_, transform=T, visual_heatmap=True)
 
-for file in os.listdir(img_path):
-    img_path_ = img_path + file
-    save_path_ = save_path + file
-    # draw_CAM(model, img_path_, save_path_, transform=T)
+import time
+a = time.time()
+for i in range(10):
+    # draw_CAM(model, img_path_, save_path_, transform=T, visual_heatmap=True)
     img_pil = Image.open(img_path_)
     input_tensor = T(img_pil)
-    input_tensor = input_tensor.reshape((1, 3, 224, 224))
+    input_tensor = input_tensor.reshape((1, 3, 448, 448))
     input_tensor.cuda()
-    cam = AblationCAM(model=model, target_layers=target_layers, use_cuda=True)
+    cam = GradCAMPlusPlus(model=model, target_layers=target_layers, use_cuda=True)
     targets = None
     grayscale_cam = cam(input_tensor=input_tensor, targets=targets)
-    grayscale_cam = grayscale_cam.swapaxes(0, 1)
-    grayscale_cam = grayscale_cam.swapaxes(2, 1)
-    grayscale_cam = cv2.resize(grayscale_cam, size)
-    grayscale_cam = grayscale_cam.reshape(size)
-    grayscale_cam = (grayscale_cam > 0.5).astype(np.uint8)
-    cv2.imwrite(save_path_[:-4] + '.png', grayscale_cam)
+b = time.time()
+print((b - a) / 10)
+
+
+grayscale_cam = grayscale_cam.swapaxes(0, 1)
+grayscale_cam = grayscale_cam.swapaxes(2, 1)
+grayscale_cam = cv2.resize(grayscale_cam, size)
+grayscale_cam = grayscale_cam.reshape(size)
+img_pil = cv2.resize(np.array(img_pil), (224, 224))
+img_pil = np.array(img_pil) / 255
+
+grayscale_cam = cv2.imread(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_1_CRFs.png', cv2.IMREAD_GRAYSCALE)
+grayscale_cam = cv2.resize(grayscale_cam, (224, 224))
+grayscale_cam = (grayscale_cam - 127) / 127
+cam_image = show_cam_on_image(img_pil, grayscale_cam, True)
+cam_image = cv2.cvtColor(cam_image, cv2.COLOR_BGR2RGB)
+# grayscale_cam = (grayscale_cam > 0.5).astype(np.uint8)
+cv2.imwrite(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_2_CAM.png', cam_image)
 
 
 
 
+grayscale_cam = cv2.imread(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_5_CRFs.png', cv2.IMREAD_GRAYSCALE)
+cv2.imwrite(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_5_prediction.png', (grayscale_cam > 64).astype(np.uint8) * 255)
 

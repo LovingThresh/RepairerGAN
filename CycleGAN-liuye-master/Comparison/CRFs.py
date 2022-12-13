@@ -112,6 +112,7 @@ def CRFs(original_image_path, predicted_image_path, CRF_image_path):
 
     # 将predicted_image转换回相应的颜色并保存图像
     # MAP = colorize[MAP, :]
+    MAP = ((((MAP * 2) / 255) > 0.5) * 255).astype(np.uint8)
     imwrite(CRF_image_path, MAP.reshape(224, 224))
     print("CRF图像保存在", CRF_image_path, "!")
 
@@ -134,10 +135,10 @@ def CRFs(original_image_path, predicted_image_path, CRF_image_path):
 def CRFs_array(original_image, predicted_image):
     original_image = np.asarray(original_image)
     predicted_image = np.asarray(predicted_image)
-    img = cv2.resize(original_image, (224, 224))
+    img = cv2.resize(original_image, (448, 448))
     # 将predicted_image的RGB颜色转换为uint32颜色 0xbbggrr
     anno_rgb = predicted_image.astype(np.uint32)
-    anno_rgb = np.repeat(anno_rgb.reshape(224, 224, 1), 3, axis=-1)
+    anno_rgb = np.repeat(anno_rgb.reshape(448, 448, 1), 3, axis=-1)
     anno_lbl = anno_rgb[:, :, 0] + (anno_rgb[:, :, 1] << 8) + (anno_rgb[:, :, 2] << 16)
 
     # 将uint32颜色转换为1,2,...
@@ -220,7 +221,21 @@ def CRFs_array(original_image, predicted_image):
 
     # 将predicted_image转换回相应的颜色并保存图像
     # MAP = colorize[MAP, :]
-    MAP = MAP.reshape(224, 224)
+    MAP = MAP.reshape(448, 448)
     return MAP
 
+
+
+image = np.ones((448, 448, 3))
+
+
+import cv2
+image = cv2.imread(r'M:\CycleGAN(WSSS)\File\FeatureImage\iter-000020000.jpg')
+crop_image = image[:448, :448]
+cv2.imwrite(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_5.png', crop_image)
+pre_image = image[:448, 448 * 2: 448 * 3]
+cv2.imwrite(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_5_pre.png', pre_image)
+
+image = cv2.imread(r'C:\Users\liuye\Desktop\image\outputs\attachments\image_5_1.png')
+image = cv2.imwrite(r'C:\Users\liuye\Desktop\image\outputs\attachments\image_5_1_label.png', (image > 10).astype(np.uint8) * 255)
 

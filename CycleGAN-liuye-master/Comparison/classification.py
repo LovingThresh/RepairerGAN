@@ -160,7 +160,7 @@ class MyDataSet(Dataset):
         self.key = key
         self.transform = transforms.Compose(
             [
-                transforms.Resize(size=(224, 224)),
+                transforms.Resize(size=(448, 448)),
                 transforms.ToTensor(),
                 transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
             ]
@@ -187,7 +187,7 @@ class MyDataSet(Dataset):
         return img, label
 
     def __len__(self) -> int:
-        return len(self.path_list_Positive)
+        return 2500
 
 
 train_ds = MyDataSet(train_path, key='train')
@@ -195,12 +195,12 @@ val_ds = MyDataSet(train_path, key='val')
 test_ds = MyDataSet(train_path, key='test')
 
 # 数据加载
-new_train_loader = DataLoader(train_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=0)
+new_train_loader = DataLoader(train_ds, batch_size=8, shuffle=True, pin_memory=True, num_workers=0)
 new_val_loader = DataLoader(val_ds, batch_size=32, shuffle=True, pin_memory=True, num_workers=0)
 new_test_loader = DataLoader(test_ds, batch_size=32, shuffle=False, pin_memory=True, num_workers=0)
 
 LR = 0.0005  # 设置学习率
-EPOCH_NUM = 100  # 训练轮次
+EPOCH_NUM = 2  # 训练轮次
 
 
 def time_since(since):
@@ -273,7 +273,7 @@ if __name__ == '__main__':
     loss_list = []
     for epoch in range(EPOCH_NUM):
         train(epoch, loss_list)
-        val()
+        # val()
 
     x_ori = []
     for i in range(len(loss_list)):

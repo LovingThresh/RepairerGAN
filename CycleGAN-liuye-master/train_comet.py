@@ -523,3 +523,5 @@ for single_file in file:
     image = (image > 127.5).astype(np.uint8)
     cv2.imwrite(r'P:\GAN\CycleGAN-liuye-master\CycleGAN-liuye-master\datasets\crack\ann_dir\val_true/' + single_file, image)
 
+
+from torchmetrics.classification import JaccardIndex

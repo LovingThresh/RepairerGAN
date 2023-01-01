@@ -148,7 +148,7 @@ def resnet50(pretrained=False):
 
 
 # 初始化根目录
-train_path = r'P:/GAN/CycleGAN-liuye-master/CycleGAN-liuye-master/datasets/crack/'
+train_path = r'/RepairerGAN/datasets/crack/'
 
 
 # 定义读取文件的格式

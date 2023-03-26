@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="Always" remoteFilesAllowedToDisappearOnAutoupload="false" confirmBeforeUploading="false">
+    <option name="confirmBeforeUploading" value="false" />
+    <serverData>
+      <paths name="A40">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/autodl-tmp/CycleGAN-liuye-master/CycleGAN-liuye-master" local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="root@region-3.autodl.com:54515 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/root/autodl-tmp/CycleGAN-liuye-master/CycleGAN-liuye-master" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
+  </component>
+</project>

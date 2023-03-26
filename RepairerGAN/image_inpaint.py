@@ -4,14 +4,20 @@
 # @Email   : csu1704liuye@163.com | sy2113205@buaa.edu.cn
 # @File    : image_inpaint.py
 # @Software: PyCharm
-import numpy as np
 import cv2
 
-img = cv2.imread('CFD_001.jpg')
-mask = cv2.imread('CFD_001_mask.jpg', 0)
 
-mask = cv2.dilate(mask, (3, 3), iterations=2)
-dst = cv2.inpaint(img, mask, 7, cv2.INPAINT_TELEA)
+def image_inpaint(image_path, mask_path, output_path):
+    image = cv2.imread(image_path)
+    mask = cv2.imread(mask_path, 0)
+    output = cv2.inpaint(image, mask, 3, cv2.INPAINT_TELEA)
+    cv2.imwrite(output_path, output)
+    return output
 
-cv2.imshow('dst', dst)
-cv2.waitKey(0)
+
+def image_resize(image_path, output_path, size):
+    image = cv2.imread(image_path)
+    output = cv2.resize(image, size)
+    cv2.imwrite(output_path, output)
+    return output
+

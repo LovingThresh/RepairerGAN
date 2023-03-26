@@ -4,16 +4,12 @@
 # @Email   : csu1704liuye@163.com | sy2113205@buaa.edu.cn
 # @File    : CRFs.py
 # @Software: PyCharm
-import os
+
+import cv2
 import numpy as np
 import pydensecrf.densecrf as dcrf
-import cv2
-try:
-    from cv2 import imread, imwrite, resize
-except ImportError:
-    # 如果没有安装OpenCV，就是用skimage
-    from skimage.io import imread, imsave
-    imwrite = imsave
+from cv2 import imread, imwrite, resize
+
 from pydensecrf.utils import unary_from_labels, create_pairwise_bilateral, create_pairwise_gaussian
 
 """
@@ -24,7 +20,6 @@ CRF_image_path  即将进行CRF后处理得到的结果图像保存路径
 
 
 def CRFs(original_image_path, predicted_image_path, CRF_image_path):
-
     img = imread(original_image_path)
     img = resize(img, (224, 224))
     # 将predicted_image的RGB颜色转换为uint32颜色 0xbbggrr
@@ -52,16 +47,16 @@ def CRFs(original_image_path, predicted_image_path, CRF_image_path):
     # n_labels = len(set(labels.flat)) - int(HAS_UNK) ##如果有不确定区域，用这一行代码替换上一行
 
     ###########################
-    ###     设置CRF模型     ###
+    #        设置CRF模型       #
     ###########################
     use_2d = False
     # use_2d = True
-    ###########################################################
-    ##不是很清楚什么情况用2D
-    ##作者说“对于图像，使用此库的最简单方法是使用DenseCRF2D类”
-    ##作者还说“DenseCRF类可用于通用（非二维）密集CRF”
-    ##但是根据我的测试结果一般情况用DenseCRF比较对
-    #########################################################33
+
+    # 不是很清楚什么情况用2D
+    # 作者说“对于图像，使用此库的最简单方法是使用DenseCRF2D类”
+    # 作者还说“DenseCRF类可用于通用（非二维）密集CRF”
+    # 但是根据我的测试结果一般情况用DenseCRF比较对
+
     if use_2d:
         # 使用densecrf2d类
         d = dcrf.DenseCRF2D(img.shape[1], img.shape[0], n_labels)
@@ -99,10 +94,6 @@ def CRFs(original_image_path, predicted_image_path, CRF_image_path):
         d.addPairwiseEnergy(feats, compat=10,
                             kernel=dcrf.DIAG_KERNEL,
                             normalization=dcrf.NORMALIZE_SYMMETRIC)
-
-    ####################################
-    ###         做推理和计算         ###
-    ####################################
 
     # 进行5次推理
     Q = d.inference(5)
@@ -225,11 +216,8 @@ def CRFs_array(original_image, predicted_image):
     return MAP
 
 
-
 image = np.ones((448, 448, 3))
 
-
-import cv2
 image = cv2.imread(r'M:\CycleGAN(WSSS)\File\FeatureImage\iter-000020000.jpg')
 crop_image = image[:448, :448]
 cv2.imwrite(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_5.png', crop_image)
@@ -237,5 +225,5 @@ pre_image = image[:448, 448 * 2: 448 * 3]
 cv2.imwrite(r'M:\CycleGAN(WSSS)\File\FeatureImage\image_5_pre.png', pre_image)
 
 image = cv2.imread(r'C:\Users\liuye\Desktop\image\outputs\attachments\image_5_1.png')
-image = cv2.imwrite(r'C:\Users\liuye\Desktop\image\outputs\attachments\image_5_1_label.png', (image > 10).astype(np.uint8) * 255)
-
+image = cv2.imwrite(r'C:\Users\liuye\Desktop\image\outputs\attachments\image_5_1_label.png',
+                    (image > 10).astype(np.uint8) * 255)
